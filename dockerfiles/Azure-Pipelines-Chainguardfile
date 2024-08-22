@@ -1,0 +1,13 @@
+FROM cgr.dev/chainguard-private/python:3.12-dev AS chainguard-builder
+
+# Root to setup packages and provide Azure Pipelines groupadd permissions
+USER 0
+RUN apk update && apk add nodejs-22 bash sudo shadow
+# Allow the default non-root user to run groupadd by adding it to /etc/sudoers
+RUN echo "ALL ALL=(ALL) NOPASSWD: /usr/sbin/groupadd" >> /etc/sudoers
+
+USER 65532
+
+LABEL "com.azure.dev.pipelines.agent.handler.node.path"="/usr/bin/node"
+ENTRYPOINT [""]
+CMD ["node"]
