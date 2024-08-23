@@ -1,0 +1,13 @@
+#
+# This example is built to match: https://github.com/kubeflow/spark-operator/blob/master/Dockerfile
+#
+
+FROM cgr.dev/chainguard-private/spark-operator:latest as cgr-spark-operator
+FROM cgr.dev/chainguard-private/spark-bitnami:latest
+
+COPY --from=cgr-spark-operator /usr/bin/spark-operator /usr/bin/spark-operator
+COPY --from=cgr-spark-operator /usr/bin/entrypoint.sh /usr/bin/entrypoint.sh
+
+RUN chmod +x /usr/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
