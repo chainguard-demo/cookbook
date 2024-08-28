@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Class-Path: /usr/share/java/bouncycastle-fips/bc-fips.jar 
+            /usr/share/java/bouncycastle-fips/bctls-fips.jar 
+            /usr/share/java/bouncycastle-fips/bcpkix-fips.jar 
+            /usr/share/java/bouncycastle-fips/bcutil-fips.jar
