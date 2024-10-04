@@ -1,0 +1,27 @@
+# 
+# Description:
+#   - Minimal side car image with Kerberos support
+# Requirements:
+#   - Minimal
+#   - Shell to execute script extension as the entrypoint
+#   - kinit and klist executables on the $PATH
+# 
+# 
+# Add Internalization (i18n) support to a minimal Chainguard Image
+# 
+# Hint: Use the dev variant so that you can add packages
+# 
+FROM cgr.dev/chainguard/glibc-dynamic:latest-dev
+
+# Root permissions required to add packages
+USER 0
+RUN apk add --no-cache krb5
+
+WORKDIR /home/nonroot/kerberos 
+COPY kerberos-refresh.sh .
+COPY krb5.conf .
+RUN chown 65532:65532 -R /home/nonroot/kerberos && \
+	chmod +x /home/nonroot/kerberos/kerberos-refresh.sh
+USER 65532
+
+ENTRYPOINT ["/home/nonroot/kerberos-refresh.sh"]
