@@ -1,0 +1,39 @@
+# 
+# Add Internalization (i18n) support to a minimal Chainguard Image
+# 
+# Hint: Use the dev variant so that you can add packages
+# 
+FROM cgr.dev/chainguard/glibc-dynamic:latest-dev
+
+# Root permissions required to add packages
+USER 0
+#
+# Install locales for regional settings and language configurations
+# 
+# Individual locals can be installed by adding glibc-locale-nnn
+# where nnn is the 2 or 3 digit ISO-639 locale code
+# 
+# glibc-locale-posix contains POSIX locale data for glibc
+# 
+RUN apk add --no-cache glibc-locales
+
+# Install International Components for Unicode (ICO) tools, libraries, and dev headers
+RUN apk add --no-cache icu icu-libs icu-dev
+
+# Install gettext for message translation support
+RUN apk add --no-cache gettext
+
+# Install the IANA Timezone Database
+RUN apk add --no-cache tzdata
+
+# Install tzutils for timezone utilities
+RUN apk add --no-cache tzutils
+
+# Install libunistring for Unicode string manipulation
+RUN apk add --no-cache libunistring
+
+# Install fontconfig and font-liberation for managing system fonts and international font support
+RUN apk add --no-cache fontconfig font-liberation
+
+# Switch back to unprivileged user access
+USER 65532
