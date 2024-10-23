@@ -1,0 +1,13 @@
+pilot:
+  image: istio-pilot
+  tag: "1.21"
+global:
+  hub: cgr.dev/chainguard-private
+  proxy:
+    image: istio-proxy
+  proxy_init:
+    image: istio-proxy
+  tag: "1.21"
+istio_cni:
+  cni:
+    image: istio-install-cni
