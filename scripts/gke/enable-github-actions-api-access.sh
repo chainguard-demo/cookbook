@@ -10,7 +10,7 @@ GITHUB_ACTIONS_CIDR_LIST=($(curl -s https://api.github.com/meta | jq -r '.action
 aggregated_cidrs=()
 count=0
 
-// the gcloud command will only accept 100 CIDRs at a time so doing exactly that
+# the gcloud command will only accept 100 CIDRs at a time so doing exactly that
 for cidr in "${GITHUB_ACTIONS_CIDR_LIST[@]}"; do
     
     aggregated_cidrs+=("$cidr")
@@ -30,7 +30,7 @@ for cidr in "${GITHUB_ACTIONS_CIDR_LIST[@]}"; do
     fi
 done
 
-// Adding the rest of the cidrs
+# Adding the rest of the cidrs
 if (( count > 0 )); then
     cidrscommasinteadofspaces="$(IFS=,; echo "${aggregated_cidrs[*]}")"
     echo "Adding subnets: $cidrscommasinteadofspaces"
