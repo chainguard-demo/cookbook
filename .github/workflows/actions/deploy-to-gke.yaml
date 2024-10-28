@@ -1,0 +1,66 @@
+name: Release Latest Changes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    # The "_DEFAULT" env vars below allow this to work out-of-the-box under "chainguard-dev" org.
+    # The "_OVERRIDE" env vars below override the default ones, and are sourced from GitHub secrets.
+    # If running this workflow from a fork, you must set the following secrets in your repository settings:
+    # PROJECT_ID, WORKLOAD_IDENTITY_PROVIDER, SERVICE_ACCOUNT_NAME, CLUSTER_NAME, CLUSTER_LOCATION
+    env:
+      # Google Cloud project ID
+      PROJECT_ID_DEFAULT: josborne-gke-demo
+      # To properly set this up, see "Setting up Identity Federation for GitHub Actions"
+      # https://cloud.google.com/blog/products/identity-security/enabling-keyless-authentication-from-github-actions
+      WORKLOAD_IDENTITY_PROVIDER_DEFAULT: projects/895401504149/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+      # This service account must have write access to GCR and the GKE cluster
+      SERVICE_ACCOUNT_NAME_DEFAULT: github-actions
+      SERVICE_ACCOUNT_NAME_OVERRIDE: ${{ secrets.SERVICE_ACCOUNT_NAME }}
+      # GKE cluster details
+      CLUSTER_NAME_DEFAULT: josborne-gke-demo
+      CLUSTER_LOCATION_DEFAULT: us-central1
+
+    steps:
+      - name: 'Setup env vars'
+        run: |
+          echo "PROJECT_ID=${PROJECT_ID_DEFAULT}" >> $GITHUB_ENV
+          echo "WORKLOAD_IDENTITY_PROVIDER=${WORKLOAD_IDENTITY_PROVIDER_DEFAULT}" >> $GITHUB_ENV
+          echo "SERVICE_ACCOUNT_NAME=${SERVICE_ACCOUNT_NAME_DEFAULT}" >> $GITHUB_ENV
+          echo "CLUSTER_NAME=${CLUSTER_NAME_DEFAULT}" >> $GITHUB_ENV
+          echo "CLUSTER_LOCATION=${CLUSTER_LOCATION_DEFAULT}" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+      - name: 'Authenticate to Google Cloud'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          # Default is to generate a key file, which is automatically configured for use with gcloud.
+          workload_identity_provider: '${{ env.WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ env.SERVICE_ACCOUNT_NAME }}@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+      
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+      
+      - id: 'get-credentials'
+        uses: 'google-github-actions/get-gke-credentials@v2'
+        with:
+          cluster_name: ${{ env.CLUSTER_NAME }}
+          location: ${{ env.CLUSTER_LOCATION }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      # The KUBECONFIG env var is automatically exported and picked up by kubectl.
+      - id: 'get-pods'
+        run: 'kubectl get pods'
+             # CONTAINER_NAME="$(kubectl get deployment ${DEPLOYMENT_NAME} -o json 2>/dev/null | jq -r '.spec.template.spec.containers[0].name')"
+             # kubectl set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=$(cat ko.images)
