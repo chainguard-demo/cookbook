@@ -81,7 +81,7 @@ echo ""
 echo ""
 
 echo -ne "Packages Added:${normal}"
-packages_added=$(echo "$diff_api_json_output" | jq -r '.packages.added[] | select(.reference | startswith("pkg:apk")) | .name')
+packages_added=$(echo "$diff_api_json_output" | jq -r '.packages.added[]? | select(.reference | startswith("pkg:apk")) | .name')
 if [ -z "$packages_added" ]; then
     echo -n ""
 else
@@ -92,7 +92,7 @@ else
 fi
 
 echo -ne "\nPackages Removed:${normal}"
-packages_removed=$(echo "$diff_api_json_output" | jq -r '.packages.removed[] | select(.reference | startswith("pkg:apk")) | .name')
+packages_removed=$(echo "$diff_api_json_output" | jq -r '.packages.removed[]? | select(.reference | startswith("pkg:apk")) | .name')
 if [ -z "$packages_removed" ]; then
     echo -n ""
 else
@@ -102,7 +102,7 @@ else
 fi
 
 echo -ne "\nPackages Changed:${normal}"
-packages_changed=$(echo "$diff_api_json_output" | jq -r '.packages.changed[] | "\(.name) \(.previous.version) \(.current.version)"')
+packages_changed=$(echo "$diff_api_json_output" | jq -r '.packages.changed[]? | "\(.name) \(.previous.version) \(.current.version)"')
 if [ -z "$packages_changed" ]; then
     echo -n ""
 else
@@ -139,7 +139,7 @@ declare -a severities=("Critical" "High" "Medium" "Low" "Unknown")
 # Loop through each severity and print vulnerabilities
 for severity in "${severities[@]}"; do
     # Extract vulnerabilities of this severity
-    vulnerabilities=$(echo "$diff_api_json_output" | jq -r --arg sev "$severity" '.vulnerabilities.removed[] | select(.severity == $sev) | .id')
+    vulnerabilities=$(echo "$diff_api_json_output" | jq -r --arg sev "$severity" '.vulnerabilities.removed[]? | select(.severity == $sev) | .id')
 
     # Check if there are vulnerabilities of this severity
     if [ -z "$vulnerabilities" ]; then
