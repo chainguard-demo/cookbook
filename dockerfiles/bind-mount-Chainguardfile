@@ -1,0 +1,13 @@
+FROM cgr.dev/chainguard-private/python:latest-dev AS chainguard-builder
+FROM cgr.dev/chainguard-private/python:latest
+USER 0
+RUN --mount=type=bind,from=chainguard-builder,target=/sbin/apk,source=/sbin/apk \
+    --mount=type=bind,from=chainguard-builder,target=/bin/sh,source=/bin/sh \
+    --mount=type=bind,from=chainguard-builder,target=/etc/apk/keys,source=/etc/apk/keys,rw \
+    --mount=type=bind,from=chainguard-builder,target=/etc/apk/repositories,source=/etc/apk/repositories,rw \
+    --mount=type=bind,from=chainguard-builder,target=/lib/libapk.so.2.14.0,source=/lib/libapk.so.2.14.0 \
+    --mount=type=bind,from=chainguard-builder,target=/usr/lib/libcrypt.so,source=/usr/lib/libcrypt.so \
+    --mount=type=bind,from=chainguard-builder,target=/usr/lib/libcrypt.so.1,source=/usr/lib/libcrypt.so.1 \
+    --mount=type=bind,from=chainguard-builder,target=/usr/lib/libcrypt.so.1.1.0,source=/usr/lib/libcrypt.so.1.1.0 \
+    --mount=type=bind,from=chainguard-builder,target=/usr/lib/libcrypto.so.3,source=/usr/lib/libcrypto.so.3 \
+    apk add --no-cache libxml2
