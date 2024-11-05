@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export GRYPE_DEFAULT_IMAGE_PULL_SOURCE=registry
+
 # Default scanner is 'grype'
 scanner="grype"
 
