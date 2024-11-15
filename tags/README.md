@@ -1,17 +1,3 @@
-# Tags Directory
-
-<br/>
-
->
-> #### A note
->
-> - longer examples are moved to the scripts directory
-> - Make sure to replace "cgr.dev/chainguard-private" with your enterprise repository url (i.e. cgr.dev/yourdomain.com)
->
->
-
-<br/>
-
 ### Check main package version installed
 
 ```bash
