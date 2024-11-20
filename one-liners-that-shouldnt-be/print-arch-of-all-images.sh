@@ -1,0 +1,1 @@
+export PARENT=cgr-demo.com; chainctl images repos list --parent=$PARENT -o json | jq -r '.items[].name' | sort | uniq | awk -v parent="$PARENT" '{print "cgr.dev/" parent "/" $0 ":latest"}' | while read -r image; do echo -n "$image: "; crane manifest "$image" | jq -r '[.manifests[] | .platform.architecture] | join(",")'; done
