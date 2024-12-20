@@ -1,0 +1,34 @@
+FROM cgr.dev/chainguard-private/nginx:latest-dev
+USER 0
+ARG MODULE_REPO="https://github.com/nginx-modules/ngx_http_hmac_secure_link_module"
+RUN apk add --no-cache --virtual .build-deps \
+    build-base \
+    git \
+    curl \
+    pcre-dev \
+    zlib-dev \
+    openssl-dev \
+    nginx-mainline-src
+RUN git clone $MODULE_REPO /tmp/ngx_http_hmac_secure_link_module && \
+    cd /tmp/ngx_http_hmac_secure_link_module && \
+    gcc -o ngx_http_hmac_secure_link_module.so -shared -fPIC \
+    -I /usr/src/nginx/src/core/ \
+    -I /usr/src/nginx/objs/ \
+    -I /usr/src/nginx/src/os/unix/ \
+    -I /usr/src/nginx/src/event/ \
+    -I /usr/src/nginx/src/http/ \
+    -I /usr/src/nginx/src/http/v2 \
+    -I /usr/src/nginx/src/http/modules/ \
+    ngx_http_hmac_secure_link_module.c
+RUN cd /usr/src/nginx && \
+    cp -p auto/configure . && \
+    ./configure --with-compat --add-dynamic-module=/tmp/ngx_http_hmac_secure_link_module && make modules && \
+    cp -p objs/ngx_http_hmac_secure_link_module.so /usr/lib/nginx/modules/ && \
+    sed -i '1i load_module /usr/lib/nginx/modules/ngx_http_hmac_secure_link_module.so;' /etc/nginx/nginx.conf
+# Clean up
+RUN apk del .build-deps && \
+    rm -rf /usr/src/nginx && \
+    rm -rf /tmp/ngx_http_hmac_secure_link_module
+EXPOSE 80
+ENTRYPOINT ["/usr/sbin/nginx"]
+CMD ["-c", "/etc/nginx/nginx.conf", "-e", "/dev/stderr", "-g", "daemon off;"]
