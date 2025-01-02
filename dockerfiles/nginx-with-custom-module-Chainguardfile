@@ -29,6 +29,6 @@ RUN cd /usr/src/nginx && \
 RUN apk del .build-deps && \
     rm -rf /usr/src/nginx && \
     rm -rf /tmp/ngx_http_hmac_secure_link_module
-EXPOSE 80
+EXPOSE 8080
 ENTRYPOINT ["/usr/sbin/nginx"]
 CMD ["-c", "/etc/nginx/nginx.conf", "-e", "/dev/stderr", "-g", "daemon off;"]
