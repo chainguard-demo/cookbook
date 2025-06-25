@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system-node-credential-provider
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - serviceaccounts
+    verbs:
+    - get
+  - apiGroups:
+    - ""
+    resources:
+    - serviceaccounts/token
+    verbs:
+    - create
+  # Needed for requesting a token for a specific audience
+  # https://github.com/kubernetes/kubernetes/pull/130485
+  - apiGroups:
+    - ""
+    resources:
+    - "https://issuer.enforce.dev"
+    verbs:
+    - "request-serviceaccounts-token-audience"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system-node-credential-provider
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system-node-credential-provider
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: system:node:credential-provider-control-plane
