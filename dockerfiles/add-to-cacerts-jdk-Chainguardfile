@@ -1,0 +1,12 @@
+#  Replace chainguard-private with your org name
+#  Verify with: docker run --rm -it cgr-citi:certs-jdk | grep -i sigstore
+FROM cgr.dev/chainguard-private/jdk:openjdk-21-dev
+
+USER 0
+RUN apk add --no-cache ca-certificates openssl
+COPY fulcio_v1.crt.pem /usr/local/share/ca-certificates/fulcio_v1.crt
+RUN update-ca-certificates
+USER 65532
+
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["keytool -list -v -storepass changeit -cacerts | grep 'Issuer:'"]
