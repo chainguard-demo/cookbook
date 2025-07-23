@@ -1,0 +1,54 @@
+- task: Bash@3
+  displayName: "Pull from cgr.dev and push to ACR"
+  inputs:
+    targetType: inline
+    script: |
+      set -euo pipefail
+
+      # Source registry info (Chainguard)
+      SOURCE_REGISTRY="cgr.dev"
+      SOURCE_NAMESPACE="<organization-name>"
+      SOURCE="$SOURCE_REGISTRY/$SOURCE_NAMESPACE"
+      CG_USERNAME="chainguard"
+      CG_TOKEN="$PULL_TOKEN_SECRET"
+
+      # Target ACR registry info
+      ACR_REGISTRY="myregistry.azurecr.io"
+      ACR_NAMESPACE="mirror"
+
+      # Authenticate to source registry for docker
+      echo "$CG_TOKEN" | docker login "$SOURCE_REGISTRY" -u "$CG_USERNAME" --password-stdin
+
+      # Authenticate to Azure ACR (assumes az login or managed identity)
+      echo "Logging into Azure ACR..."
+      az acr login --name ${ACR_REGISTRY%%.*}
+
+      # Install crane if not already installed
+      if ! command -v crane &> /dev/null; then
+        echo "Installing crane..."
+        curl -sSL https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin crane
+      fi
+
+      # List of known repos (replace with actual list or dynamic discovery)
+      REPOS=("nginx" "alpine" "python")  # Add more as needed
+
+      for repo in "${REPOS[@]}"; do
+        echo "Listing tags for $repo..."
+        TAGS=$(crane ls "$SOURCE/$repo" --username "$CG_USERNAME" --password "$CG_TOKEN")
+
+        for tag in $TAGS; do
+          SRC_IMAGE="$SOURCE/$repo:$tag"
+          DEST_IMAGE="$ACR_REGISTRY/$ACR_NAMESPACE/$repo:$tag"
+
+          echo "Pulling $SRC_IMAGE..."
+          docker pull "$SRC_IMAGE"
+
+          echo "Tagging as $DEST_IMAGE..."
+          docker tag "$SRC_IMAGE" "$DEST_IMAGE"
+
+          echo "Pushing $DEST_IMAGE to ACR..."
+          docker push "$DEST_IMAGE"
+        done
+      done
+  env:
+    PULL_TOKEN_SECRET: $(PULL_TOKEN_SECRET)
