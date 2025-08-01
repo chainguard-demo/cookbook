@@ -1,6 +1,6 @@
 # Overview
 
-Example Azuzure DevOps task to pull & push an organization's cgr.dev private registry to a target ACR repository
+Example Azure DevOps task to pull & push an organization's cgr.dev private registry to a target ACR repository
 
 * Uses crane only to list tags.
 * Uses docker pull to pull each image.
@@ -18,7 +18,7 @@ https://edu.chainguard.dev/chainguard/chainguard-images/chainguard-registry/auth
 
 ### Configuring Azure ACR Auth
 
-This uses az acr login, which works if your build agent is logged in to Azure or using a managed identity.
+This uses Azure ACR login, which works if your build agent is logged in to Azure or using a managed identity.
 
 Alternatively, you can do docker login $ACR_REGISTRY with a service principal and password if needed.
 
