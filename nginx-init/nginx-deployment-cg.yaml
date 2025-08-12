@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-chainguard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-chainguard
+  template:
+    metadata:
+      labels:
+        app: nginx-chainguard
+    spec:
+      volumes:
+        - name: nginx-config
+          emptyDir: {}
+
+      initContainers:
+        - name: run-entrypoint
+          image: bannimal/chainguard-init-nginx:latest  # init image with baked-in nginx.conf and entrypoint logic
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx
+
+      containers:
+        - name: nginx
+          image: cgr.dev/chainguard/nginx:latest
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx
