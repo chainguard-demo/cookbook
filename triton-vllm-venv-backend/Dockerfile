@@ -22,7 +22,7 @@ RUN /opt/tritonserver/venv/bin/python3 -m pip install --no-cache-dir \
 
 WORKDIR /work
 COPY main.py ./main.py
-COPY examplegpt ./example.gpt
+COPY examplevllm ./examplevllm
 COPY ./entrypoints/example_entrypoint.sh /work/entrypoint.sh
 RUN chmod +x /work/entrypoint.sh
 
