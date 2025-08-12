@@ -30,17 +30,17 @@ RUN /opt/tritonserver/venv/bin/python3 -m pip install --no-cache-dir \
 
 Installing vllm==0.9.2 matches all of the required dependencies to the Chainguard OS system level versions by including them in the venv with the following versions:
 
-tritonclient 2.45.0
-triton (openAI compiler) 3.3.0
-numpy >=2 (2.2.6)
-torch >= 2.6 (2.7.0+cu126)
+- tritonclient 2.45.0
+- triton (openAI compiler) 3.3.0
+- numpy >=2 (2.2.6)
+- torch >= 2.6 (2.7.0+cu126)
 
 **Chainguard's default versions for OS-level dependencies:**
 
-tritonclient 2.45.0
-triton (openAI compiler) 3.3.1
-numpy >=2 (2.2.6)
-torch >= 2.6 ( 2.6.0+cu124)
+- tritonclient 2.45.0
+- triton (openAI compiler) 3.3.1
+- numpy >=2 (2.2.6)
+- torch >= 2.6 ( 2.6.0+cu124)
 
 
 ## Build (amd64)
@@ -53,4 +53,4 @@ docker buildx build --platform linux/amd64 -t example-vllm:test .
 docker run --rm --platform linux/amd64 example-vllm:test --demo
 ```
 
-The main.py script will run through preflight checks of the expected modules to ensure there are no errors. GPU warnings can be ignored if running on a localmachine (mac) or other non-GPU supported hardware
+The main.py script will run through preflight checks of the expected modules to ensure there are no errors. GPU warnings can be ignored if running on a localmachine (mac) or other non-GPU supported
