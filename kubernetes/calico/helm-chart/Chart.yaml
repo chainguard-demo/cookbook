@@ -1,0 +1,13 @@
+apiVersion: v2
+name: calico
+description: A Helm chart for Calico with Chainguard images
+type: application
+version: 0.1.0
+
+# This should always match the version of the tigera-operator below
+appVersion: "v3.30.2"
+
+dependencies:
+- name: tigera-operator
+  version: "v3.30.2"
+  repository: "https://docs.tigera.io/calico/charts"

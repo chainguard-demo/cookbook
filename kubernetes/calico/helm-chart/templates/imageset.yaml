@@ -1,0 +1,38 @@
+{{- if .Values.imageSet.enabled }}
+{{- $_ := required "imageSet.apiserver.digest is required" .Values.imageSet.apiserver.digest }}
+{{- $_ := required "imageSet.node.digest is required" .Values.imageSet.node.digest }}
+{{- $_ := required "imageSet.cni.digest is required" .Values.imageSet.cni.digest }}
+{{- $_ := required "imageSet.kubeControllers.digest is required" .Values.imageSet.kubeControllers.digest }}
+{{- $_ := required "imageSet.pod2daemonFlexvol.digest is required" .Values.imageSet.pod2daemonFlexvol.digest }}
+{{- $_ := required "imageSet.csi.digest is required" .Values.imageSet.csi.digest }}
+{{- $_ := required "imageSet.typha.digest is required" .Values.imageSet.typha.digest }}
+{{- $_ := required "imageSet.nodeDriverRegistrar.digest is required" .Values.imageSet.nodeDriverRegistrar.digest }}
+{{- $_ := required "imageSet.keyCertProvisioner.digest is required" .Values.imageSet.keyCertProvisioner.digest }}
+apiVersion: operator.tigera.io/v1
+kind: ImageSet
+metadata:
+  name: calico-{{ .Chart.AppVersion }}
+spec:
+  images:
+    - image: calico/apiserver
+      digest: {{ .Values.imageSet.apiserver.digest }}
+    - image: calico/node
+      digest: {{ .Values.imageSet.node.digest }}
+    - image: calico/cni
+      digest: {{ .Values.imageSet.cni.digest }}
+    - image: calico/kube-controllers
+      digest: {{ .Values.imageSet.kubeControllers.digest }}
+    - image: calico/pod2daemon-flexvol
+      digest: {{ .Values.imageSet.pod2daemonFlexvol.digest }}
+    - image: calico/csi
+      digest: {{ .Values.imageSet.csi.digest }}
+    - image: calico/typha
+      digest: {{ .Values.imageSet.typha.digest }}
+    - image: calico/node-driver-registrar
+      digest: {{ .Values.imageSet.nodeDriverRegistrar.digest }}
+    - image: calico/key-cert-provisioner
+      digest: {{ .Values.imageSet.keyCertProvisioner.digest }}
+    # This isn't used on Linux, but it needs to have a value containing a valid digest.
+    - image: calico/node-windows
+      digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
+{{- end }}

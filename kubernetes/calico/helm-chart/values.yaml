@@ -1,0 +1,31 @@
+tigera-operator:
+  tigeraOperator:
+    registry: cgr.dev
+    image: ""
+  installation:
+    enabled: true
+    variant: Calico
+    registry: cgr.dev
+    imagePath: ""
+    imagePrefix: calico-
+
+imageSet:
+  enabled: true
+  apiserver:
+    digest: ""
+  node:
+    digest: ""
+  cni:
+    digest: ""
+  kubeControllers:
+    digest: ""
+  pod2daemonFlexvol:
+    digest: ""
+  csi:
+    digest: ""
+  typha:
+    digest: ""
+  nodeDriverRegistrar:
+    digest: ""
+  keyCertProvisioner:
+    digest: ""
