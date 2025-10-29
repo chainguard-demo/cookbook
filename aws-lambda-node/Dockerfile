@@ -17,7 +17,7 @@ RUN apk update && apk add --no-cache cmake autoconf automake libtool python3 py3
 
 # Copy function code
 RUN mkdir -p ${FUNCTION_DIR}
-COPY . ${FUNCTION_DIR}
+COPY index.js package.json ${FUNCTION_DIR}
 
 WORKDIR ${FUNCTION_DIR}
 
