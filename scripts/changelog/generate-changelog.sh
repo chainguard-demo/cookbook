@@ -107,21 +107,25 @@ if [ -z "$packages_changed" ]; then
     echo -n ""
 else
     echo "$packages_changed" | while read -r name prev_version curr_version; do
-        prev_version=${prev_version//_/.}
-        curr_version=${curr_version//_/.}
-        IFS='.' read -ra PREV <<< "$prev_version"
-        IFS='.' read -ra CURR <<< "$curr_version"
-        upgraded=false
-        downgraded=false
-        for i in {0..2}; do
-            if [[ ${CURR[i]} -gt ${PREV[i]} ]]; then
-                upgraded=true
-                break
-            elif [[ ${CURR[i]} -lt ${PREV[i]} ]]; then
-                downgraded=true
-                break
-            fi
-        done
+        if [[ $name == *".yaml" ]]; then
+            echo -ne "\n  - ${red}$name cannot be diffed: \n    - Old version: $prev_version \n    - New version: $curr_version${normal}"
+        else
+            prev_version=${prev_version//_/.}
+            curr_version=${curr_version//_/.}
+            IFS='.' read -ra PREV <<< "$prev_version"
+            IFS='.' read -ra CURR <<< "$curr_version"
+            upgraded=false
+            downgraded=false
+            for i in {0..2}; do
+                if [[ ${CURR[i]} -gt ${PREV[i]} ]]; then
+                    upgraded=true
+                    break
+                elif [[ ${CURR[i]} -lt ${PREV[i]} ]]; then
+                    downgraded=true
+                    break
+                fi
+            done
+        fi
         if $upgraded; then
             echo -ne "\n  - ${blue}$name: Upgraded from $prev_version to $curr_version${normal}"
         elif $downgraded; then
