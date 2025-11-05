@@ -1,0 +1,90 @@
+name: Mirror workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      # trino:453 should fail the vulnerability scan
+      matrix:
+        image:
+          [
+            "python:3.10",
+            "python:3.10-dev",
+            "postgres:14",
+            "postgres:16",
+            "node:latest",
+            "trino:453",
+          ]
+    continue-on-error: true
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Login to CGR container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.CGR_REGISTRY }}
+          username: ${{ secrets.CGR_USERNAME }}
+          password: ${{ secrets.CGR_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Scan image
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ vars.CGR_REGISTRY }}/${{ matrix.image }}
+          fail-build: true
+          severity-cutoff: medium
+
+      - name: Verify attestation
+        shell: bash
+        run: |
+          cosign verify \
+              --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+              --certificate-identity=https://github.com/chainguard-images/images-private/.github/workflows/release.yaml@refs/heads/main \
+          ${{ vars.CGR_REGISTRY }}/${{ matrix.image }} | jq > attestation.json
+
+      - name: Download SBOM
+        shell: bash
+        run: |
+          cosign download attestation ${{ vars.CGR_REGISTRY }}/${{ matrix.image }} | jq -r .payload | base64 -d | jq .predicate >> sbom.json
+
+      - name: Cut the tag from the image name
+        shell: bash
+        run: |
+          echo "IMAGE_NAME=$(echo ${{ matrix.image }} | cut -d: -f1)" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$(echo ${{ matrix.image }} | cut -d: -f2)" >> $GITHUB_ENV
+
+      - name: Upload SBOM and attestation
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.IMAGE_NAME }}-${{ env.IMAGE_TAG }}
+          path: |
+            sbom.json
+            attestation.json
+
+      - name: Setup go
+        uses: actions/setup-go@v5
+
+      - name: Run incert and push
+        shell: bash
+        run: |
+          go install github.com/chainguard-dev/incert@latest
+          incert \
+            -ca-certs-file test.crt \
+            -image-url ${{ vars.CGR_REGISTRY }}/${{ matrix.image }} \
+            -dest-image-url ghcr.io/${{ github.repository }}/${{ matrix.image }}
