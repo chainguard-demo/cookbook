@@ -1,0 +1,39 @@
+FROM cgr.dev/chainguard-private/nginx-fips:latest-dev
+
+USER 0
+ARG NGINX_HEADERS_MORE_MODULE="0.35"
+ENV MODULE_URL="https://api.github.com/repos/openresty/headers-more-nginx-module/tarball?ref=${NGINX_HEADERS_MORE_MODULE}"
+
+# Install dependencies
+RUN apk add --no-cache --virtual .build-deps \
+    build-base \
+    curl \
+    pcre-dev \
+    zlib-dev \
+    openssl-dev \
+    nginx-mainline-src
+
+# Download and extract the headers-more module
+RUN mkdir -p /tmp/headers-more-nginx-module && \
+    curl -L ${MODULE_URL} | tar zx -C /tmp/headers-more-nginx-module --strip-components=1
+
+# Build and link the module
+RUN cd /usr/src/nginx && \
+    cp -p auto/configure . && \
+    ./configure --with-compat --add-dynamic-module=/tmp/headers-more-nginx-module && \
+    make modules && \
+    cp -p objs/ngx_http_headers_more_filter_module.so /usr/lib/nginx/modules/ && \
+    sed -i '1i load_module /usr/lib/nginx/modules/ngx_http_headers_more_filter_module.so;' /etc/nginx/nginx.conf
+
+# Clean up
+RUN apk del .build-deps && \
+    rm -rf /usr/src/nginx && \
+    rm -rf /tmp/headers-more-nginx-module
+
+# Expose the default port and set entrypoint
+EXPOSE 8080
+ENTRYPOINT ["/usr/sbin/nginx"]
+CMD ["-c", "/etc/nginx/nginx.conf", "-e", "/dev/stderr", "-g", "daemon off;"]
+
+# docker build -t nginx-mod -f headers-more.Dockerfile .
+# docker run -p 8080:8080 --name target nginx-mod
