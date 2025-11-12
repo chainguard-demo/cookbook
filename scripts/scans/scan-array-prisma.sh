@@ -62,59 +62,27 @@ for IMAGE in "${images[@]}"; do
   
   created=$(crane config "$IMAGE" | jq -r '.created | split("T")[0]')  
   twistcli images scan --address=https://us-east1.cloud.twistlock.com/us-1-113031256 --token=$PRISMATOKEN --output-file=scans.json "$IMAGE" >/dev/null 2>&1
-  
   output=$(jq -r '
-  .results[].vulnerabilities as $vulns
-  | reduce $vulns[].severity as $s (
-      {critical:0,high:0,medium:0,low:0,other:0};
-      .[
-        (if $s=="critical" then "critical"
-         elif $s=="high" then "high"
-         elif $s=="medium" then "medium"
-         elif $s=="low" then "low"
-         else "other" end)
-      ] += 1
-    )
-  | .total = ($vulns | length)
-  | [.total, .critical, .high, .medium, .low, .other]
-  | @csv
+  [.results[] | (
+    (.vulnerabilities // []) as $vulns
+    | reduce $vulns[].severity? as $s (
+        {critical:0,high:0,medium:0,low:0,other:0};
+        .[
+          (if $s=="critical" then "critical"
+           elif $s=="high" then "high"
+           elif $s=="medium" then "medium"
+           elif $s=="low" then "low"
+           else "other" end)
+        ] += 1
+      )
+    | .total = ($vulns | length)
+    | [.total, .critical, .high, .medium, .low, .other]
+    | @csv
+  )]
+  | .[]
 ' scans.json)
 
 echo "$IMAGE,$created,$output"
 
-  # output=$(cat scans.json | jq -c '{
-  #   Total: [.results[].vulnerabilities length,
-  #   Critical: [.results[] | select(.vulnerabilities.severity == "critical")] | length,
-  #   High: [.results[] | select(.vulnerabilities.severity == "high")] | length,
-  #   Medium: [.results[] | select(.vulnerabilities.severity == "medium")] | length,
-  #   Low: [.results[] | select(.vulnerabilities.severity == "low")] | length
-  # }')
-
-  # critical=$(jq '.Critical' <<< "$output")
-  # high=$(jq '.High' <<< "$output")
-  # medium=$(jq '.Medium' <<< "$output")
-  # low=$(jq '.Low' <<< "$output")
-  # total=$(jq '.Total' <<< "$output")
-
-  # json=$(jq --arg image "$IMAGE" \
-  #   --arg created "$created" \
-  #   --arg critical "$critical" \
-  #   --arg high "$high" \
-  #   --arg medium "$medium" \
-  #   --arg low "$low" \
-  #   --arg total "$total" \
-  #   '.items += [{
-  #     image: $image,
-  #     created: $created,
-  #     scan: {
-  #       type: "Prisma",
-  #       critical: ($critical | tonumber),
-  #       high: ($high | tonumber),
-  #       medium: ($medium | tonumber),
-  #       low: ($low | tonumber),
-  #       total: ($total | tonumber)
-  #     }
-  #   }]' <<< "$json")
-  # echo "$json" | jq -r '.items[] | [.image, .created, .scan.total, .scan.critical, .scan.high, .scan.medium, .scan.low] | @csv'  
 done
 echo "---------------------------------------------"
