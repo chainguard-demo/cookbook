@@ -1,0 +1,17 @@
+{
+  "name": "aws-lambda-typescript",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild index.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/index.js"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.159",
+    "esbuild": "^0.27.1"
+  }
+}
