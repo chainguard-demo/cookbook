@@ -535,6 +535,7 @@ class APKMatcher:
         self.chainguard_image = "cgr.dev/chainguard/wolfi-base:latest"
         self.apk_cache = None
         self.apk_cache_lower = None
+        self.versioned_index = None  # Pre-built index for versioned packages
 
     def _build_apk_cache(self) -> Dict[str, Dict[str, str]]:
         """Build a cache of available APKs using wolfi-package-status"""
