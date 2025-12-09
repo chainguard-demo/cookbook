@@ -1,7 +1,7 @@
 # aws-lambda-typescript
 
-An example of using the Chainguard `node` image as a Typescript AWS
-Lambda function runtime as described in [this
+An example of using the Chainguard `node` image as an AWS
+Lambda function Typescript runtime as described in [this
 documentation](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-image.html#nodejs-image-clients).
 
 ## Requirements
