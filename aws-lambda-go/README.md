@@ -1,5 +1,5 @@
 # aws-lambda-go
-An example of using the Chainguard `python` image as a base image for an AWS
+An example of using the Chainguard `go` image as a base image for an AWS
 Lambda function as described in [this documentation](https://docs.aws.amazon.com/lambda/latest/dg/go-image.html#go-image-other)
 
 ## Requirements
@@ -15,7 +15,7 @@ You should have these utilities installed:
 Export a name for your Lambda function. We'll use this value in later steps.
 
 ```
-$ export FUNCTION_NAME=chainguard-python-lambda
+$ export FUNCTION_NAME=chainguard-go-lambda
 ```
 
 Login to AWS. This may be different depending on how you authenticate to AWS.
