@@ -2,7 +2,7 @@
 ARG FUNCTION_DIR="/var/task"
 
 # Define Chainguard org to pull images from
-ARG CHAINGUARD_ORG="[INSERT CHAINGUARD ORG]"
+ARG CHAINGUARD_ORG
 
 FROM cgr.dev/${CHAINGUARD_ORG}/dotnet-sdk:9 AS build-image
 
