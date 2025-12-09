@@ -83,8 +83,15 @@ $ aws lambda create-function \
 Invoke the Lambda function.
 
 ```
-$ aws lambda invoke --function-name "${FUNCTION_NAME}" --payload '"Hello, World"' --cli-binary-format raw-in-base64-out /dev/stderr >/dev/null
+$ aws lambda invoke --function-name "${FUNCTION_NAME}" --payload '"Hello, World!"' --cli-binary-format raw-in-base64-out /dev/stderr >/dev/null
 ```
+
+You should see this output:
+```
+"HELLO, WORLD!"
+```
+
+You may see a timeout error upon first invocation after creating this function. The runtime image may not yet be cached near where the function runs, so it could take longer than the default 3 second timeout to set the function's execution environment. Just run the invoke command again.
 
 ## Clean Up
 
