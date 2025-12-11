@@ -1,4 +1,4 @@
-# aws-lambda-node
+# aws-lambda-java
 
 An example of using the Chainguard `maven` and `jre` images to build and run a containerized Java application on AWS Lambda as described in [this documentation](https://docs.aws.amazon.com/lambda/latest/dg/java-image.html#java-image-clients).
 
@@ -24,11 +24,12 @@ Login to AWS. This may be different depending on how you authenticate to AWS.
 $ aws sso login
 ```
 
-Export the AWS account ID and region. We'll use these values in later steps.
+Export the AWS account ID and region, as well as your Chainguard organization name. We'll use these values in later steps.
 
 ```
 $ export AWS_REGION=us-west-2
 $ export ACCOUNT_ID=$(aws sts get-caller-identity | jq -r .Account)
+$ export CHAINGUARD_ORG=[insert your org name]
 ```
 
 Create an AWS ECR repository.
@@ -53,6 +54,7 @@ $ docker buildx build \
     --push \
     --platform linux/amd64 \
     --provenance=false \
+    --build-arg CHAINGUARD_ORG=${CHAINGUARD_ORG} \
     -t "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FUNCTION_NAME}:latest" \
     .
 ```

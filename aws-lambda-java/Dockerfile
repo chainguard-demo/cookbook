@@ -1,4 +1,4 @@
-ARG CHAINGUARD_ORG="chainguard"
+ARG CHAINGUARD_ORG
 
 # Use the Chainguard maven image during the build stage
 FROM cgr.dev/${CHAINGUARD_ORG}/maven:latest AS build-image
