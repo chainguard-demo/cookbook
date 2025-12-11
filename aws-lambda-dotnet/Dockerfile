@@ -4,7 +4,7 @@ ARG FUNCTION_DIR="/var/task"
 # Define Chainguard org to pull images from
 ARG CHAINGUARD_ORG
 
-FROM cgr.dev/${CHAINGUARD_ORG}/dotnet-sdk:latest AS build-image
+FROM cgr.dev/${CHAINGUARD_ORG}/dotnet-sdk:9 AS build-image
 
 # Set temporary directory in builder 
 WORKDIR /tmp
@@ -22,7 +22,7 @@ RUN dotnet publish chainguard-lambda-runtimes-dotnet-example.csproj \
     --output build
 
 # Use the Chainguard dotnet-runtime image as the runtime
-FROM cgr.dev/${CHAINGUARD_ORG}/dotnet-runtime:latest
+FROM cgr.dev/${CHAINGUARD_ORG}/dotnet-runtime:9
 
 # Include global arg in this stage of the build
 ARG FUNCTION_DIR
