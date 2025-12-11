@@ -2,7 +2,7 @@
 ARG FUNCTION_DIR="/function"
 
 # Define Chainguard org to pull images from
-ARG CHAINGUARD_ORG="chainguard"
+ARG CHAINGUARD_ORG
 
 FROM cgr.dev/${CHAINGUARD_ORG}/node:latest-dev AS build-image
 

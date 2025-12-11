@@ -1,5 +1,5 @@
 #Define Chainguard org to pull images from
-ARG CHAINGUARD_ORG="chainguard"
+ARG CHAINGUARD_ORG
 
 # BUILD STAGE: Use Chainguard distroless go variant for build stage. You may optionally switch to -dev if additional utilities are needed to build your app.
 FROM cgr.dev/${CHAINGUARD_ORG}/go:latest AS build

@@ -1,7 +1,6 @@
 # aws-lambda-dotnet
 
-An example of using the Chainguard `dotnet-sdk` as a builder image and `dotnet-runtime` as the runtime image for an AWS
-Lambda function. 
+An example of using the Chainguard `dotnet-sdk` and `dotnet-runtime` images to build and run a containerized Dotnet application on AWS Lambda.
 - The first two instructions on the [official AWS documentation for using non-AWS dotnet images](https://docs.aws.amazon.com/lambda/latest/dg/csharp-image.html#csharp-image-clients) were used to setup a basic dotnet application according to AWS' template for custom runtimes.
 - The application in the AWS template is a basic application that receives input and converts all applicable characters to uppercase.
 - This example deviates from the rest of the instructions on the aforementioned documentation so as to not introduce additional tooling (`dotnet lambda`) to build and deploy the application and instead leverage common tooling such as `docker buildx` and `aws-cli`.
@@ -57,7 +56,7 @@ $ docker buildx build \
     --push \
     --platform linux/amd64 \
     --provenance=false \
-    --build-arg CHAINGUARD_ORG=${CHAINGUARD_ORG}
+    --build-arg CHAINGUARD_ORG=${CHAINGUARD_ORG} \
     -t "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FUNCTION_NAME}:latest" \
     .
 ```

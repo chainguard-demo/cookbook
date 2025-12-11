@@ -2,7 +2,7 @@
 ARG FUNCTION_DIR="/function"
 
 # Define Chainguard org to pull images from
-ARG CHAINGUARD_ORG="chainguard"
+ARG CHAINGUARD_ORG
 
 # Use -dev variant to install dependencies with pip
 FROM cgr.dev/${CHAINGUARD_ORG}/python:latest-dev AS build-image

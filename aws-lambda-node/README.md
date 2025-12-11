@@ -1,8 +1,6 @@
 # aws-lambda-node
 
-An example of using the Chainguard `node` image as a base image for an AWS
-Lambda function as described in [this
-documentation](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-image.html#nodejs-image-clients).
+An example of using the Chainguard `node` image to build and run a containerized Node application on AWS Lambda as described in [this documentation](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-image.html#nodejs-image-clients).
 
 ## Requirements
 
@@ -26,11 +24,12 @@ Login to AWS. This may be different depending on how you authenticate to AWS.
 $ aws sso login
 ```
 
-Export the AWS account ID and region. We'll use these values in later steps.
+Export the AWS account ID and region, as well as your Chainguard organization name. We'll use these values in later steps.
 
 ```
 $ export AWS_REGION=us-west-2
 $ export ACCOUNT_ID=$(aws sts get-caller-identity | jq -r .Account)
+$ export CHAINGUARD_ORG=[insert your org name]
 ```
 
 Create an AWS ECR repository.
@@ -55,6 +54,7 @@ $ docker buildx build \
     --push \
     --platform linux/amd64 \
     --provenance=false \
+    --build-arg CHAINGUARD_ORG=${CHAINGUARD_ORG} \
     -t "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${FUNCTION_NAME}:latest" \
     .
 ```

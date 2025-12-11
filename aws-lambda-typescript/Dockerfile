@@ -2,9 +2,9 @@
 ARG FUNCTION_DIR="/function"
 
 # Define Chainguard org to pull images from
-ARG CHAINGUARD_ORG
+ARG CHAINGUARD_ORG="chainguard"
 
-FROM cgr.dev/${CHAINGUARD_ORG}/node:24-dev AS build-image
+FROM cgr.dev/${CHAINGUARD_ORG}/node:latest-dev AS build-image
 
 ARG FUNCTION_DIR
 
@@ -28,7 +28,7 @@ RUN npm install aws-lambda-ric
 RUN npm run build
 
 # Use the Distroless Chainguard node image as the runtime
-FROM cgr.dev/${CHAINGUARD_ORG}/node:24
+FROM cgr.dev/${CHAINGUARD_ORG}/node:latest
 
 ARG FUNCTION_DIR
 
