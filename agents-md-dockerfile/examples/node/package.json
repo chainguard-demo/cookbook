@@ -1,0 +1,11 @@
+{
+  "name": "test-node-app",
+  "version": "1.0.0",
+  "description": "Test Node.js app for Chainguard validation",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Build completed'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
