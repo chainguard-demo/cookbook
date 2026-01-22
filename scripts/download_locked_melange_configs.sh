@@ -2,6 +2,9 @@
 set -euo pipefail
 
 export IMAGE="cgr.dev/cgr-demo.com/jdk:openjdk-17"
+export CHAINGUARD_ORG="cgr-demo.com"
+export ARCH="x86_64"
+export DLDIR="$(pwd)/locked-melange-configs"
 
 # 1) Extract apk name-version-rX list from SPDX attestation (amd64 digests)
 PACKAGES=$(
@@ -52,13 +55,9 @@ echo "Extracted the following apk repositories:"
 printf '%s\n' "$REPOS"
 echo "---------------------------------------------"
 
-ARCH="x86_64"
-DLDIR="$(pwd)/locked-melange-configs"
 mkdir -p "$DLDIR"
-
 echo ""
 echo "Generating pull token"
-export CHAINGUARD_ORG="cgr-demo.com"
 echo "Organization: $CHAINGUARD_ORG"
 chainctl auth pull-token --parent=${CHAINGUARD_ORG} -o json 2>/dev/null > /tmp/token.json
 export IDENTITY=$(jq -r .identity_id /tmp/token.json)
