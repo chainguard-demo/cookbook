@@ -45,6 +45,8 @@ cosign download attestation \
           ["NIST-CMVP-4971", "https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4971"]
         elif .name == "aws-lc-fips" then
           (["NIST-CMVP-4759", "https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4759"],  ["NIST-CMVP-4816", "https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4816"])
+        elif (["cilium-envoy-fips", "datawire-envoy-fips", "envoy-fips", "istio-envoy-fips", "ztunnel-fips"] | contains([.name])) then
+          ["NIST-CMVP-4407", "https://csrc.nist.gov/projects/cryptographic-module-validation-program/certificate/4407"]
         else
           empty
         end
