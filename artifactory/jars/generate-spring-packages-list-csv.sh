@@ -36,7 +36,7 @@ items.find({
 
 output="$(aql_post "$AQL_QUERY")"
 
-csv_file="$(mktemp --suffix=.csv)"
+csv_file="$(mktemp $(date +"%Y%m%d_%H%M%S").csv)"
 echo "groupId,artifactId,version,downloads,downloaded" > "$csv_file"
 
 base_depth="$(awk -F'/' '{print NF}' <<<"$BASE_PATH")"
@@ -60,9 +60,9 @@ echo "$output" | jq -r \
       )
     | (.path | split("/")) as $p
     | {
-        groupId: ($base | gsub("/"; ".")),
-        artifactId: $p[$depth],
-        version: $p[$depth + 1],
+        groupId: ($p[0:-2] | join(".")),
+        artifactId: $p[-2],
+        version: $p[-1],
         downloads: $downloads,
         downloaded: $downloaded
       }
