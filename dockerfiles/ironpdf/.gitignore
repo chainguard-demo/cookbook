@@ -1,0 +1,9 @@
+out/
+**/bin/
+**/obj/
+.vs/
+.vscode/
+.idea/
+*.user
+docs-internal
+CLAUDE.md
