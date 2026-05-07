@@ -1,0 +1,55 @@
+name: Generate PDF
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  generate-pdf:
+    name: Build and render PDF
+    runs-on: ubuntu-latest
+    env:
+      IRONPDF_LICENSE_KEY: ${{ secrets.IRONPDF_LICENSE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Verify license key is set
+        run: |
+          if [[ -z "$IRONPDF_LICENSE_KEY" ]]; then
+            echo "::error::IRONPDF_LICENSE_KEY repo secret is required."
+            echo "Add it under Settings → Secrets and variables → Actions."
+            echo "A 30-day trial key is available at https://ironpdf.com/#trial-license."
+            exit 1
+          fi
+
+      - name: Build image
+        run: make build
+
+      - name: Render PDF
+        run: |
+          mkdir -p out
+          chmod 0777 out
+          docker run --rm \
+            -e IRONPDF_LICENSE_KEY \
+            -v "$PWD/out:/out" \
+            ironpdf-poc:dev
+
+      - name: Validate PDF
+        run: |
+          test -s out/hello.pdf
+          head -c 4 out/hello.pdf | grep -q '%PDF'
+          size=$(wc -c < out/hello.pdf)
+          echo "::notice title=PDF rendered::out/hello.pdf is $size bytes"
+
+      - name: Upload PDF
+        uses: actions/upload-artifact@v7
+        with:
+          path: out/hello.pdf
+          archive: false   # download directly as hello.pdf — no zip wrapper
+          retention-days: 30
+          if-no-files-found: error

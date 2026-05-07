@@ -1,0 +1,7 @@
+**/bin
+**/obj
+out
+.git
+.vscode
+.idea
+*.md
