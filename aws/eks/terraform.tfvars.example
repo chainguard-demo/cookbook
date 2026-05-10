@@ -1,0 +1,13 @@
+region             = "us-west-2"
+cluster_name       = "cookbook-eks"
+
+# Required: your Chainguard organization. Used both as the path segment
+# in oci://cgr.dev/<org>/charts/<name> *and* as the ECR pull-through
+# cache repository prefix.
+chainguard_org = "your.org"
+
+# Required: pull-token credentials for the ECR pull-through cache rule. Pass
+# these via TF_VAR_* env vars (don't commit real values).
+#
+# chainguard_pull_username = "..."
+# chainguard_pull_token    = "..."
