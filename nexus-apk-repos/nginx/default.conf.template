@@ -1,0 +1,27 @@
+server {
+    listen 8080;
+    server_name localhost;
+    resolver 1.1.1.1 valid=30s ipv6=off;
+
+    location / {
+        proxy_pass            https://apk.cgr.dev/${CHAINGUARD_APK_ORG}/;
+        proxy_set_header      Host          "apk.cgr.dev";
+        proxy_set_header      Authorization "Basic ${CHAINGUARD_APK_AUTH}";
+        proxy_ssl_server_name on;
+
+        # Strip client identity headers — Nexus must not leak these upstream
+        proxy_set_header      X-Forwarded-For "";
+        proxy_set_header      X-Real-IP       "";
+
+        proxy_intercept_errors on;
+        error_page 301 302 303 307 308 = @follow_redirect;
+    }
+
+    location @follow_redirect {
+        set $redirect_url $upstream_http_location;
+        proxy_pass        $redirect_url;
+        proxy_ssl_server_name on;
+        proxy_set_header  Host          $proxy_host;
+        proxy_set_header  Authorization "";
+    }
+}
