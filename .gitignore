@@ -1,1 +1,36 @@
 fips/java/target/
+
+# Terraform
+**/*.tfvars
+**/*.tfvars.json
+!**/*.example.tfvars
+!**/*.example.tfvars.json
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.*
+**/*.tfplan
+**/*.tfplan.*
+**/crash.log
+**/crash.*.log
+**/.terraformrc
+**/terraform.rc
+**/override.tf
+**/override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+
+# Credentials / secrets
+**/.npmrc
+**/.pypirc
+**/.netrc
+**/.env
+**/.env.*
+!**/.env.example
+**/credentials
+**/credentials.json
+**/*.pem
+**/*.key
+
+# Node
+**/node_modules/
