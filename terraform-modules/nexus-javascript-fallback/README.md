@@ -1,13 +1,13 @@
 # Chainguard Libraries for JavaScript with public npm fallback — Sonatype Nexus
 
 > [!WARNING]
-> Prefer the [`javascript`](../javascript/) module over this one. The
-> Chainguard Repository for JavaScript has built-in upstream fallback that
-> enforces malware scanning and a publish cooldown on newly-released packages;
-> the `javascript` module points Nexus at that endpoint and lets Chainguard
-> handle the fallback. This module instead has Nexus itself fall back to
-> public npm, which bypasses those protections. Use it only when Chainguard's
-> upstream fallback is disabled by policy.
+> Prefer the [`nexus-javascript`](../nexus-javascript/) module over this one.
+> The Chainguard Repository for JavaScript has built-in upstream fallback
+> that enforces malware scanning and a publish cooldown on newly-released
+> packages; the `nexus-javascript` module points Nexus at that endpoint and
+> lets Chainguard handle the fallback. This module instead has Nexus itself
+> fall back to public npm, which bypasses those protections. Use it only
+> when Chainguard's upstream fallback is disabled by policy.
 
 Provisions a Nexus group npm repository backed by a Chainguard proxy and a
 public npm proxy (in that order), following the Nexus setup recommended in
