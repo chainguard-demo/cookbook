@@ -1,13 +1,14 @@
 # Chainguard Libraries for JavaScript with public npm fallback — Artifactory
 
 > [!WARNING]
-> Prefer the [`javascript`](../javascript/) module over this one. The
-> Chainguard Repository for JavaScript has built-in upstream fallback that
-> enforces malware scanning and a publish cooldown on newly-released packages;
-> the `javascript` module points Artifactory at that endpoint and lets
-> Chainguard handle the fallback. This module instead has Artifactory itself
-> fall back to public npm, which bypasses those protections. Use it only when
-> Chainguard's upstream fallback is disabled by policy.
+> Prefer the [`artifactory-javascript`](../artifactory-javascript/) module
+> over this one. The Chainguard Repository for JavaScript has built-in
+> upstream fallback that enforces malware scanning and a publish cooldown on
+> newly-released packages; the `artifactory-javascript` module points
+> Artifactory at that endpoint and lets Chainguard handle the fallback. This
+> module instead has Artifactory itself fall back to public npm, which
+> bypasses those protections. Use it only when Chainguard's upstream fallback
+> is disabled by policy.
 
 Provisions an Artifactory virtual npm repository backed by a Chainguard remote
 and a public npm remote (in that order), following the JFrog Artifactory setup
