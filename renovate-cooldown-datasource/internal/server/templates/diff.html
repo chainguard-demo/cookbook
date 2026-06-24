@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{.Title}}: {{.OldRef}} → {{.NewRef}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>{{.CSS}}</style>
+</head>
+<body>
+  <h1>
+    {{if .ConsoleURL}}<a class="repo" href="{{.ConsoleURL}}" target="_blank" rel="noopener">{{.Title}}<span class="ext-arrow" aria-hidden="true">↗</span></a>{{else}}<span class="repo">{{.Title}}</span>{{end}}:
+    <span class="ref">{{.OldRef}}</span>
+    <span class="arrow">→</span>
+    <span class="ref">{{.NewRef}}</span>
+  </h1>
+
+  <div id="loading"><span class="spinner"></span>Computing diff…</div>
+  <div id="error" class="error" hidden></div>
+
+  <div id="content" hidden>
+    <div class="refs">
+      <div class="ref-card" id="from-card">
+        <h3>From</h3>
+        <div class="ref-field"><span class="ref-label">Digest</span><span class="ref-val digest" id="from-digest"></span></div>
+        <div class="ref-field"><span class="ref-label">Timestamp</span><span class="ref-val" id="from-ts"></span></div>
+        <div class="ref-field"><span class="ref-label">Platform</span><span class="ref-val mono" id="from-platform"></span></div>
+        <div class="ref-field"><span class="ref-label">Main package</span><span class="ref-val" id="from-main"></span></div>
+      </div>
+      <div class="ref-card" id="to-card">
+        <h3>To</h3>
+        <div class="ref-field"><span class="ref-label">Digest</span><span class="ref-val digest" id="to-digest"></span></div>
+        <div class="ref-field"><span class="ref-label">Timestamp</span><span class="ref-val" id="to-ts"></span></div>
+        <div class="ref-field"><span class="ref-label">Platform</span><span class="ref-val mono" id="to-platform"></span></div>
+        <div class="ref-field"><span class="ref-label">Main package</span><span class="ref-val" id="to-main"></span></div>
+      </div>
+    </div>
+
+    <h2>Package changes</h2>
+    <div id="packages"></div>
+
+    <h2>Upstream source changes</h2>
+    <div id="sources"></div>
+
+    <h2>Image config changes</h2>
+    <div id="config"></div>
+  </div>
+
+  <script>
+    const repo = {{.Repo}};
+    const oldRef = {{.OldRef}};
+    const newRef = {{.NewRef}};
+  </script>
+  <script>{{.JS}}</script>
+</body>
+</html>

@@ -1,33 +1,13 @@
-# renovate-cooldown-datasource
+# Renovate Datasource
 
-A small HTTP service that acts as a [Renovate custom datasource](https://docs.renovatebot.com/modules/datasource/custom/)
-for Chainguard images, returning a view of tags that is at least *N* days in
-the past.
+A [Renovate custom datasource](https://docs.renovatebot.com/modules/datasource/custom/)
+for Chainguard images.
 
-For each tag in a Chainguard repo:
+It implements two features:
 
-- If the tag's current digest is older than the cooldown window → return the tag, the update time, and the digest as-is.
-- If the current digest is newer than the cooldown window → walk the tag's history and return the most recent digest that *was* old enough.
-- If no historical digest satisfies the cooldown → omit the tag.
-
-A `GET /v1/{repo}` response looks like:
-
-```json
-{
-  "releases": [
-    {
-      "version": "3.14.5",
-      "releaseTimestamp": "2026-06-10T20:18:06.42Z",
-      "digest": "sha256:163cc24b066e0ea18daa4966227cdb8e61c2cf9f49681bc566459506901533a6"
-    },
-    {
-      "version": "3.14.6",
-      "releaseTimestamp": "2026-06-14T18:46:31.317Z",
-      "digest": "sha256:d5312494fbc793de620941d10e2bc04f0c2ce67706b9da2071b297474218c719"
-    }
-  ]
-}
-```
+1. A configurable cooldown that only updates to tags and digests that
+   are at least *N* days in the past.
+2. Changelog URLs, via a custom UI that diffs the old and the new images.
 
 ## Build
 
@@ -103,7 +83,7 @@ directly against cgr.dev (which would defeat the cooldown).
   "enabledManagers": ["custom.regex"],
   "customDatasources": {
     "chainguard-cooldown": {
-      "defaultRegistryUrlTemplate": "http://renovate-cooldown-datasource/v1/{{packageName}}",
+      "defaultRegistryUrlTemplate": "http://renovate-cooldown-datasource/v1/releases/{{packageName}}",
       "format": "json"
     }
   },
@@ -115,6 +95,12 @@ directly against cgr.dev (which would defeat the cooldown).
         "FROM\\s+cgr\\.dev/my-org/(?<packageName>[A-Za-z0-9._/-]+):(?<currentValue>[A-Za-z0-9._-]+)(@(?<currentDigest>sha256:[a-f0-9]+))?"
       ],
       "datasourceTemplate": "custom.chainguard-cooldown",
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["custom.chainguard-cooldown"],
+      "changelogUrl": "http://renovate-cooldown-datasource/repo/{{packageName}}/diff/{{#if currentDigest}}{{currentDigest}}{{else}}{{currentValue}}{{/if}}/{{#if newDigest}}{{newDigest}}{{else}}{{newValue}}{{/if}}"
     }
   ]
 }
@@ -134,3 +120,40 @@ want to keep enabled, replace it with a more surgical disable:
 
 Or, a packageRule that disables the `dockerfile` manager only for
 `cgr.dev/my-org/*` packages.
+
+## How It Works
+
+### Cooldown
+
+For each tag in a Chainguard repo:
+
+- If the tag's current digest is older than the cooldown window → return the tag, the update time, and the digest as-is.
+- If the current digest is newer than the cooldown window → walk the tag's history and return the most recent digest that *was* old enough.
+- If no historical digest satisfies the cooldown → omit the tag.
+
+A `GET /v1/releases/{repo}` response looks like:
+
+```json
+{
+  "releases": [
+    {
+      "version": "3.14.5",
+      "releaseTimestamp": "2026-06-10T20:18:06.42Z",
+      "digest": "sha256:163cc24b066e0ea18daa4966227cdb8e61c2cf9f49681bc566459506901533a6"
+    },
+    {
+      "version": "3.14.6",
+      "releaseTimestamp": "2026-06-14T18:46:31.317Z",
+      "digest": "sha256:d5312494fbc793de620941d10e2bc04f0c2ce67706b9da2071b297474218c719"
+    }
+  ]
+}
+```
+
+### Changelogs
+
+Visiting `<datasource-url>/repo/node/diff/{{currentDigest}}/{{newDigest}}` will
+show a changelog that compares the differences between the two images.
+
+It does this by fetching the image config and SBOMs for each image and comparing
+the contents.

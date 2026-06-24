@@ -35,12 +35,36 @@ const (
 )
 
 type Client struct {
+	OrgName   string
 	OrgUIDP   string
 	iam       iam.Clients
 	registry  registry.Clients
 	conn      *grpc.ClientConn
 	mode      authMode
+
+	// baseTS is the raw OIDC token source, before any STS exchange. The oci
+	// package consumes this (via BaseTokenSource()) to build its own keychain
+	// that STS-exchanges the same base token into the cgr.dev audience.
+	baseTS    oauth2.TokenSource
+	identity  string // assumable identity UIDP for identity mode; "" for chainctl
 	tokenFile string // path to OIDC token file, if identity-mode + file-based
+}
+
+// IsIdentity reports whether this client was built for assumable-identity
+// auth (as opposed to the local chainctl token). Callers use this to decide
+// which keychain to use for direct cgr.dev access.
+func (c *Client) IsIdentity() bool { return c.mode == authIdentity }
+
+// RegistryTokenSource returns an oauth2.TokenSource that mints cgr.dev-
+// audience tokens via STS exchange using the configured assumable identity.
+//
+// Only valid in identity mode. In chainctl mode we don't shell out to the
+// CLI any more — callers are expected to pick credentials up from the local
+// Docker credential store (set up via `chainctl auth configure-docker` or
+// similar) via go-containerregistry's authn.DefaultKeychain.
+func (c *Client) RegistryTokenSource(ctx context.Context) oauth2.TokenSource {
+	xchg := sts.New(issuer, "cgr.dev", sts.WithIdentity(c.identity))
+	return sts.NewContextTokenSource(ctx, c.baseTS, xchg)
 }
 
 // New creates a Client scoped to a single Chainguard org. orgName is resolved
@@ -56,43 +80,48 @@ func New(ctx context.Context, orgName string, opts ...Option) (*Client, error) {
 	if orgName == "" {
 		return nil, errors.New("orgName is required")
 	}
-	o := options{
-		mode: authChainctl,
-	}
+	o := options{mode: authChainctl}
 	for _, fn := range opts {
 		fn(&o)
 	}
 
+	// Per-mode auth setup: figure out the un-exchanged base token source
+	// (used by the OCI keychain to mint cgr.dev-audience tokens) and the
+	// platform-audience token source we'll attach to the gRPC connection.
+	var (
+		ts        oauth2.TokenSource
+		baseTS    oauth2.TokenSource
+		identity  string
+		tokenFile string
+	)
 	switch o.mode {
 	case authChainctl:
 		// Fail fast at startup with an actionable message.
 		if _, err := loadChainctlToken(); err != nil {
 			return nil, err
 		}
-		ts := oauth2.ReuseTokenSource(nil, &chainctlTokenSource{})
-		return buildClient(ctx, orgName, ts, authChainctl, "")
+		baseTS = &chainctlTokenSource{}
+		ts = oauth2.ReuseTokenSource(nil, baseTS)
 
 	case authIdentity:
 		if o.identity == "" || o.identityToken == "" {
 			return nil, errors.New("WithIdentity requires both identity UIDP and token")
 		}
-		base, tokenFile, err := buildBaseTokenSource(o.identityToken)
+		base, file, err := buildBaseTokenSource(o.identityToken)
 		if err != nil {
 			return nil, err
 		}
+		baseTS, tokenFile, identity = base, file, o.identity
 		xchg := sts.New(issuer, audience, sts.WithIdentity(o.identity))
-		ts := oauth2.ReuseTokenSource(nil, sts.NewContextTokenSource(ctx, base, xchg))
-		return buildClient(ctx, orgName, ts, authIdentity, tokenFile)
+		ts = oauth2.ReuseTokenSource(nil, sts.NewContextTokenSource(ctx, base, xchg))
 
 	default:
 		return nil, fmt.Errorf("unsupported auth mode: %d", o.mode)
 	}
-}
 
-// buildClient is the shared construction path: one gRPC connection, dynamic
-// per-RPC credentials sourced from the oauth2.TokenSource, IAM + Registry
-// clients built from that connection.
-func buildClient(ctx context.Context, orgName string, ts oauth2.TokenSource, mode authMode, tokenFile string) (*Client, error) {
+	// Shared dial-and-resolve: one gRPC connection, dynamic per-RPC
+	// credentials from the oauth2.TokenSource, IAM + Registry clients
+	// sharing the same conn.
 	uri, err := url.Parse(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid API URL: %w", err)
@@ -115,11 +144,14 @@ func buildClient(ctx context.Context, orgName string, ts oauth2.TokenSource, mod
 	}
 
 	return &Client{
+		OrgName:   orgName,
 		OrgUIDP:   orgUIDP,
 		iam:       iamc,
 		registry:  regc,
 		conn:      conn,
-		mode:      mode,
+		mode:      o.mode,
+		baseTS:    baseTS,
+		identity:  identity,
 		tokenFile: tokenFile,
 	}, nil
 }

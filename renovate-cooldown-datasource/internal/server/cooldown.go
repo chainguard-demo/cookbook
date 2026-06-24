@@ -21,7 +21,7 @@ type Release struct {
 	Digest           string    `json:"digest"`
 }
 
-// Response is the top-level shape returned by /v1/{repo}.
+// Response is the top-level shape returned by /v1/releases/{repo}.
 type Response struct {
 	Releases []Release `json:"releases"`
 }
@@ -52,12 +52,11 @@ func applyCooldown(ctx context.Context, tags []chainguard.Tag, cutoff time.Time,
 
 	for i, t := range tags {
 		if !t.LastUpdated.After(cutoff) {
-			r := Release{
+			slots[i] = &Release{
 				Version:          t.Name,
 				ReleaseTimestamp: t.LastUpdated,
 				Digest:           t.Digest,
 			}
-			slots[i] = &r
 			continue
 		}
 		needHistory = append(needHistory, i)

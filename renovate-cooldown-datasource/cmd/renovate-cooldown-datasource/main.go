@@ -13,9 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/spf13/cobra"
 
 	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/chainguard"
+	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/oci"
 	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/server"
 )
 
@@ -23,7 +25,6 @@ type options struct {
 	port               int
 	cooldown           time.Duration
 	org                string
-	apiURL             string
 	historyConcurrency int
 
 	identity      string
@@ -64,7 +65,6 @@ Authentication:
 	cmd.Flags().IntVar(&opts.port, "port", 8080, "HTTP listen port")
 	cmd.Flags().DurationVar(&opts.cooldown, "cooldown", 7*24*time.Hour, "cooldown window (Go duration, e.g. 168h, 72h, 24h)")
 	cmd.Flags().StringVar(&opts.org, "org", "", "Chainguard org/group name (required)")
-	cmd.Flags().StringVar(&opts.apiURL, "api-url", "https://console-api.enforce.dev", "Chainguard platform API URL")
 	cmd.Flags().IntVar(&opts.historyConcurrency, "history-concurrency", 16, "max concurrent ListTagHistory calls per request")
 	cmd.Flags().StringVar(&opts.identity, "identity", "", "UIDP of an assumable Chainguard identity (enables identity auth)")
 	cmd.Flags().StringVar(&opts.identityToken, "identity-token", "", "OIDC token to assume the identity; either a file path or a literal JWT")
@@ -93,14 +93,37 @@ func run(parent context.Context, opts *options) error {
 
 	log.Info("resolved org", "org", opts.org, "uidp", cg.OrgUIDP, "cooldown", opts.cooldown, "auth", authLbl)
 
+	// OCI keychain for cgr.dev:
+	//   - identity mode: mint cgr.dev-audience tokens via STS using the
+	//     configured assumable identity.
+	//   - chainctl mode: rely on go-containerregistry's default keychain,
+	//     which reads ~/.docker/config.json. Operator is expected to have
+	//     wired up cgr.dev creds locally (e.g. via `chainctl auth
+	//     configure-docker`).
+	var kc authn.Keychain
+	if cg.IsIdentity() {
+		kc = oci.Keychain(cg.RegistryTokenSource(ctx))
+	} else {
+		kc = authn.DefaultKeychain
+	}
+	fetcher := oci.New(cg.OrgName, kc)
+
 	srv := &http.Server{
 		Addr: net.JoinHostPort("", strconv.Itoa(opts.port)),
-		Handler: server.New(cg,
+		Handler: server.New(cg, fetcher,
 			server.WithCooldown(opts.cooldown),
 			server.WithHistoryConcurrency(opts.historyConcurrency),
 			server.WithLogger(log),
+			server.WithOrgName(cg.OrgName),
 		).Handler(),
+		// Bound every part of a connection so a slow or stuck client can't
+		// pin a goroutine. WriteTimeout caps the worst-case diff latency —
+		// if upstream cgr.dev takes longer than this, the response is
+		// terminated rather than dripped out indefinitely.
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
@@ -132,14 +155,12 @@ func run(parent context.Context, opts *options) error {
 // chainguardOptions translates CLI flags into chainguard.Option values, plus
 // a label for the startup log line.
 func chainguardOptions(opts *options) ([]chainguard.Option, string, error) {
-	out := []chainguard.Option{chainguard.WithAPIURL(opts.apiURL)}
 	switch {
 	case opts.identity != "" && opts.identityToken != "":
-		out = append(out, chainguard.WithIdentity(opts.identity, opts.identityToken))
-		return out, "identity", nil
+		return []chainguard.Option{chainguard.WithIdentity(opts.identity, opts.identityToken)}, "identity", nil
 	case opts.identity != "" || opts.identityToken != "":
 		return nil, "", errors.New("--identity and --identity-token must be set together")
 	default:
-		return out, "chainctl", nil
+		return nil, "chainctl", nil
 	}
 }
