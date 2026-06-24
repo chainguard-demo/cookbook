@@ -41,16 +41,13 @@ func New(orgName string, kc authn.Keychain) *Fetcher {
 	}
 }
 
-// ResolveDigest resolves repo @ ref to a per-platform manifest digest. Tags
-// are resolved with WithPlatform so the result pins to a single architecture.
-// Inputs that already start with "sha256:" pass straight through — callers
-// have already done the resolution. The returned string is just the digest
-// (e.g. "sha256:abc...") and is what Config and SBOMSPDX expect as ref so
-// neither has to re-do the platform negotiation.
+// ResolveDigest resolves repo @ ref to a per-platform manifest digest. Both
+// tags and digests are passed through remote.Image with WithPlatform so that
+// an index reference — whether named by tag or by its index-level digest —
+// descends to a single-arch child manifest. Returning the index digest as-is
+// would cause SBOMSPDX to fetch the index-level attestation, which only
+// enumerates the child manifests rather than the apk packages we want.
 func (f *Fetcher) ResolveDigest(ctx context.Context, repo, ref string) (string, error) {
-	if strings.HasPrefix(ref, "sha256:") {
-		return ref, nil
-	}
 	r, err := f.refFor(repo, ref)
 	if err != nil {
 		return "", err
