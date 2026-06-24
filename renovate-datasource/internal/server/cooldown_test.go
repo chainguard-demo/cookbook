@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/chainguard"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/chainguard"
 )
 
 func TestApplyCooldown(t *testing.T) {

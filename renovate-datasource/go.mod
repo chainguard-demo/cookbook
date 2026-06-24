@@ -1,4 +1,4 @@
-module github.com/chainguard-demo/cookbook/renovate-cooldown-datasource
+module github.com/chainguard-demo/cookbook/renovate-datasource
 
 go 1.26.0
 

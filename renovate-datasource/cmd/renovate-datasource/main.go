@@ -16,9 +16,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/spf13/cobra"
 
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/chainguard"
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/oci"
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/server"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/chainguard"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/oci"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/server"
 )
 
 type options struct {
@@ -40,13 +40,20 @@ func main() {
 func newRootCmd() *cobra.Command {
 	opts := &options{}
 	cmd := &cobra.Command{
-		Use:   "renovate-cooldown-datasource",
-		Short: "Renovate custom datasource that serves cooled-down Chainguard image tags",
+		Use:   "renovate-datasource",
+		Short: "Renovate custom datasource for Chainguard images",
 		Long: `An HTTP service that acts as a Renovate custom datasource for a single
-Chainguard org. Tags whose current digest has been stable for at least the
-configured cooldown are served as-is; tags newer than the cooldown are
-rewound to the most recent historical digest that satisfies the cooldown,
-and tags with no such history entry are omitted entirely.
+Chainguard org. It serves two things:
+
+  * /v1/releases/{repo} — the tag/digest list Renovate consumes. By default
+    a cooldown is applied so only digests that have been stable for at least
+    --cooldown are surfaced; tags newer than the cooldown are rewound to the
+    most recent historical digest that satisfies it. Pass --cooldown=0 to
+    disable the cooldown and serve the upstream tag list as-is.
+
+  * /v1/diff/{repo}/{from}/{to} and an HTML page at /repo/.../diff/... —
+    structured diffs between two image refs (apk packages, upstream source
+    repos, image config). Useful as a Renovate changelogUrl target.
 
 Authentication:
   By default the service loads the chainctl token from disk
@@ -63,7 +70,7 @@ Authentication:
 	}
 
 	cmd.Flags().IntVar(&opts.port, "port", 8080, "HTTP listen port")
-	cmd.Flags().DurationVar(&opts.cooldown, "cooldown", 7*24*time.Hour, "cooldown window (Go duration, e.g. 168h, 72h, 24h)")
+	cmd.Flags().DurationVar(&opts.cooldown, "cooldown", 7*24*time.Hour, "cooldown window (Go duration, e.g. 168h, 72h, 24h). Set to 0 to disable.")
 	cmd.Flags().StringVar(&opts.org, "org", "", "Chainguard org/group name (required)")
 	cmd.Flags().IntVar(&opts.historyConcurrency, "history-concurrency", 16, "max concurrent ListTagHistory calls per request")
 	cmd.Flags().StringVar(&opts.identity, "identity", "", "UIDP of an assumable Chainguard identity (enables identity auth)")

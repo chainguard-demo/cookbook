@@ -6,19 +6,19 @@ for Chainguard images.
 It implements two features:
 
 1. A configurable cooldown that only updates to tags and digests that
-   are at least *N* days in the past.
+   are at least *N* days in the past. Set `--cooldown=0` to disable.
 2. Changelog URLs, via a custom UI that diffs the old and the new images.
 
 ## Build
 
 ```
-go build ./cmd/renovate-cooldown-datasource
+go build ./cmd/renovate-datasource
 ```
 
 Or, build the container image:
 
 ```
-docker build -t renovate-cooldown-datasource:dev .
+docker build -t renovate-datasource:dev .
 ```
 
 ## Run
@@ -32,7 +32,7 @@ Run the service locally and reuse the local credentials provided by `chainctl`:
 chainctl auth login
 
 # Run the service
-./renovate-cooldown-datasource --org=my.org.com
+./renovate-datasource --org=my.org.com
 ```
 
 ### Kubernetes
@@ -46,10 +46,10 @@ with the `registry.pull` role. For a cluster whose OIDC issuer is reachable
 from the internet:
 
 ```
-chainctl iam identity create renovate-cooldown-datasource \
+chainctl iam identity create renovate-datasource \
   --parent=<your-chainguard-org> \
   --identity-issuer=<your-cluster-oidc-issuer-url> \
-  --subject=system:serviceaccount:default:renovate-cooldown-datasource \
+  --subject=system:serviceaccount:default:renovate-datasource \
   --role=registry.pull
 ```
 
@@ -83,7 +83,7 @@ directly against cgr.dev (which would defeat the cooldown).
   "enabledManagers": ["custom.regex"],
   "customDatasources": {
     "chainguard-cooldown": {
-      "defaultRegistryUrlTemplate": "http://renovate-cooldown-datasource/v1/releases/{{packageName}}",
+      "defaultRegistryUrlTemplate": "http://renovate-datasource/v1/releases/{{packageName}}",
       "format": "json"
     }
   },
@@ -100,7 +100,7 @@ directly against cgr.dev (which would defeat the cooldown).
   "packageRules": [
     {
       "matchDatasources": ["custom.chainguard-cooldown"],
-      "changelogUrl": "http://renovate-cooldown-datasource/repo/{{packageName}}/diff/{{#if currentDigest}}{{currentDigest}}{{else}}{{currentValue}}{{/if}}/{{#if newDigest}}{{newDigest}}{{else}}{{newValue}}{{/if}}"
+      "changelogUrl": "http://renovate-datasource/repo/{{packageName}}/diff/{{#if currentDigest}}{{currentDigest}}{{else}}{{currentValue}}{{/if}}/{{#if newDigest}}{{newDigest}}{{else}}{{newValue}}{{/if}}"
     }
   ]
 }

@@ -12,9 +12,9 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/chainguard"
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/diff"
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/oci"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/chainguard"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/diff"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/oci"
 )
 
 // Conservative repo-name pattern: lowercase, digits, dashes, underscores,
@@ -62,7 +62,9 @@ type options struct {
 // Option configures New.
 type Option func(*options)
 
-// WithCooldown sets the cooldown window. Default is 168h (7 days).
+// WithCooldown sets the cooldown window. Default is 168h (7 days). A value of
+// 0 disables the cooldown — the /v1/releases/{repo} endpoint then serves the
+// upstream tag list as-is, skipping the per-tag history rewind.
 func WithCooldown(d time.Duration) Option {
 	return func(o *options) { o.cooldown = d }
 }
@@ -228,12 +230,21 @@ func (s *Server) handleReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cutoff := s.now().Add(-s.cooldown)
-	releases, err := applyCooldown(ctx, tags, cutoff, s.backend.ListTagHistory, s.historyConcurrency)
-	if err != nil {
-		s.log.ErrorContext(ctx, "applyCooldown failed", "repo", repo, "err", err)
-		writeAPIError(w, http.StatusBadGateway, "The upstream registry returned an error. Please try again in a moment.")
-		return
+	var releases []Release
+	if s.cooldown <= 0 {
+		// Cooldown disabled — emit each tag's current state straight through,
+		// no history walk. Matches the behaviour Renovate would see if it
+		// hit cgr.dev directly, but keeps the changelog/diff plumbing the
+		// rest of the service provides.
+		releases = tagsAsReleases(tags)
+	} else {
+		cutoff := s.now().Add(-s.cooldown)
+		releases, err = applyCooldown(ctx, tags, cutoff, s.backend.ListTagHistory, s.historyConcurrency)
+		if err != nil {
+			s.log.ErrorContext(ctx, "applyCooldown failed", "repo", repo, "err", err)
+			writeAPIError(w, http.StatusBadGateway, "The upstream registry returned an error. Please try again in a moment.")
+			return
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

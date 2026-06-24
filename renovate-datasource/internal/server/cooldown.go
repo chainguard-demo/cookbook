@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/chainguard-demo/cookbook/renovate-cooldown-datasource/internal/chainguard"
+	"github.com/chainguard-demo/cookbook/renovate-datasource/internal/chainguard"
 )
 
 // DefaultHistoryConcurrency is the default fan-out used when applyCooldown is
@@ -24,6 +24,22 @@ type Release struct {
 // Response is the top-level shape returned by /v1/releases/{repo}.
 type Response struct {
 	Releases []Release `json:"releases"`
+}
+
+// tagsAsReleases emits each tag's current state as a Release, without any
+// cooldown rewind. Used by the releases handler when the cooldown is set to
+// 0 (disabled), so the datasource behaves as a thin pass-through of the
+// upstream tag list.
+func tagsAsReleases(tags []chainguard.Tag) []Release {
+	out := make([]Release, 0, len(tags))
+	for _, t := range tags {
+		out = append(out, Release{
+			Version:          t.Name,
+			ReleaseTimestamp: t.LastUpdated,
+			Digest:           t.Digest,
+		})
+	}
+	return out
 }
 
 // historyFn returns the historical iterations of the tag identified by tagID.
