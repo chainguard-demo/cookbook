@@ -27,8 +27,8 @@ for gav in $(jq -r '.gavs[]' gavs.json); do
       echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
   fi
   
-  JARURL="$BASEURL/${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
-  PATCHURL="$BASEURL/${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
+  JARURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
+  PATCHURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
   
   JAR_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "jars/$(basename "$JARURL")" -w "%{http_code}" "$JARURL")
   [ "$JAR_URL_HTTP_CODE" = "200" ] && echo "Success: $JARURL" || echo "Failed ($JAR_URL_HTTP_CODE): $JARURL"
