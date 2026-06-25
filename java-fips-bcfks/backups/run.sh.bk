@@ -1,0 +1,267 @@
+#!/bin/sh
+set -euo pipefail
+
+ts() { date -u +'%Y-%m-%dT%H:%M:%SZ'; }
+
+# ---------- Inputs & paths ----------
+CERT_DIR="/ninja/certs"
+CA_PEM="${CERT_DIR}/ca.crt"
+SERVER_CRT="${CERT_DIR}/server.crt"
+SERVER_KEY="${CERT_DIR}/server.key"
+CHAIN_PEM="${CERT_DIR}/chain.crt"   # optional
+
+TRUSTSTORE_PATH="${CERT_DIR}/truststore.bcfks"
+KEYSTORE_PATH="${CERT_DIR}/keystore.bcfks"
+
+# temp for pkcs8
+SERVER_PK8="${CERT_DIR}/server.pk8"
+
+BC_DIR="/usr/share/java/bouncycastle-fips"     # bc-fips.jar lives here on Chainguard
+BC_JAR="${BC_DIR}/bc-fips.jar"
+APPEND_FILE="/etc/java-crypto.append"
+
+# ---------- JVM / Providers ----------
+# Expose BC-FIPS modules
+export JDK_JAVA_OPTIONS="--module-path=${BC_DIR} --add-modules=jdk.crypto.ec,jdk.crypto.cryptoki ${JDK_JAVA_OPTIONS:-}"
+export JAVA_TOOL_OPTIONS="--module-path=${BC_DIR} ${JAVA_TOOL_OPTIONS:-}"
+
+# (Optional) append SunJCE; harmless, but not needed for BCFKS
+if [ ! -s "${APPEND_FILE}" ]; then
+  cat >"${APPEND_FILE}" <<'***REMOVED***'
+keystore.type.compat=true
+security.provider.20=com.sun.crypto.provider.SunJCE
+***REMOVED***
+fi
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS} -Dsecurity.overridePropertiesFile=false -Djava.security.properties=${APPEND_FILE}"
+
+# Optional: enforce BC FIPS approved-only for runtime TLS
+if [ -n "${FIPS_APPROVED_ONLY:-}" ]; then
+  export JAVA_OPTS="${JAVA_OPTS:-} -Dorg.bouncycastle.fips.approved_only=true"
+fi
+
+need_openssl() { command -v openssl >/dev/null 2>&1 || { echo "$(ts) ERROR: openssl not found"; exit 1; }; }
+need_javac()   { command -v javac   >/dev/null 2>&1 || { echo "$(ts) ERROR: javac not found"; exit 1; }; }
+need_java()    { command -v java    >/dev/null 2>&1 || { echo "$(ts) ERROR: java not found"; exit 1; }; }
+
+mkdir -p "${CERT_DIR}"
+
+# ---------- Sanitize inherited javax.net.ssl pins ----------
+_strip_ssl_flags() { sed -E 's/-Djavax\.net\.ssl\.(trust|key)Store(Type|Provider|Password)=[^ ]+//g'; }
+[ -n "${JDK_JAVA_OPTIONS:-}" ]  && export JDK_JAVA_OPTIONS="$(printf '%s' "${JDK_JAVA_OPTIONS}"  | _strip_ssl_flags)"
+[ -n "${JAVA_TOOL_OPTIONS:-}" ] && export JAVA_TOOL_OPTIONS="$(printf '%s' "${JAVA_TOOL_OPTIONS}" | _strip_ssl_flags)"
+[ -n "${JAVA_OPTS:-}" ]         && export JAVA_OPTS="$(printf '%s' "${JAVA_OPTS}"         | _strip_ssl_flags)"
+
+# ---------- 1) Build BCFKS truststore ----------
+TRUSTSTORE_PASSWORD="${TRUSTSTORE_PASSWORD:-}"
+if [ -f "${CA_PEM}" ]; then
+  if [ ! -f "${TRUSTSTORE_PATH}" ]; then
+    echo "$(ts) Creating BCFKS truststore (CA only) at ${TRUSTSTORE_PATH}"
+    TRUSTSTORE_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 || true)"
+    export TRUSTSTORE_PASSWORD
+    # Use Java helper to create BCFKS truststore from PEM
+    :> /ninja/tmp/.need_makebcfks   # marker to compile helper if not already
+  fi
+else
+  echo "$(ts) WARN: ${CA_PEM} not found; no custom CA will be trusted."
+fi
+
+# ---------- 2) Build BCFKS keystore (server cert+key) ----------
+KEY_PASSWORD="${KEY_PASSWORD:-}"
+if [ -f "${SERVER_CRT}" ] && [ -f "${SERVER_KEY}" ]; then
+  if [ ! -f "${KEYSTORE_PATH}" ]; then
+    KEY_PASSWORD="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32 || true)"
+    export KEY_PASSWORD
+    echo "$(ts) Creating BCFKS keystore (server cert+key) at ${KEYSTORE_PATH}"
+
+    # Convert private key to unencrypted PKCS#8 (FIPS-safe; no legacy needed)
+    need_openssl
+    if ! grep -q "BEGIN PRIVATE KEY" "${SERVER_KEY}"; then
+      # Likely PKCS#1 or EC PRIVATE KEY → convert to PKCS#8 DER/PEM (no encryption)
+      openssl pkcs8 -topk8 -nocrypt -in "${SERVER_KEY}" -out "${SERVER_PK8}"
+    else
+      # Already PKCS#8 PEM; copy
+      cp -f "${SERVER_KEY}" "${SERVER_PK8}"
+    fi
+
+    :> /ninja/tmp/.need_makebcfks
+  fi
+else
+  echo "$(ts) INFO: No ${SERVER_CRT} or ${SERVER_KEY}; skipping keystore creation."
+fi
+
+# ---------- 3) Compile & run helper to write .bcfks stores ----------
+if [ -f /ninja/tmp/.need_makebcfks ]; then
+  need_javac; need_java
+  cat >/ninja/tmp/MakeBcfks.java <<'***REMOVED***'
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.Security;
+import java.security.cert.CertificateFactory;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+public class MakeBcfks {
+  static final String PROV_NAME = "BCFIPS";
+
+  static byte[] readAll(String p) throws IOException {
+    return Files.readAllBytes(Paths.get(p));
+  }
+
+  static byte[] decodePem(byte[] in, String type) {
+    String s = new String(in);
+    String begin = "-----BEGIN " + type + "-----";
+    String end   = "-----END " + type + "-----";
+    int i = s.indexOf(begin), j = s.indexOf(end);
+    if (i >= 0 && j > i) {
+      String b64 = s.substring(i + begin.length(), j).replaceAll("[\\r\\n\\s]", "");
+      return Base64.getDecoder().decode(b64);
+    }
+    // assume DER if not PEM-wrapped
+    return in;
+  }
+
+  static PrivateKey readPkcs8Key(String path) throws Exception {
+    byte[] der = decodePem(readAll(path), "PRIVATE KEY");
+    PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(der);
+    String[] algs = { "RSA", "EC", "Ed25519", "Ed448" };
+    GeneralSecurityException last = null;
+    for (String alg : algs) {
+      try {
+        return KeyFactory.getInstance(alg, PROV_NAME).generatePrivate(spec);
+      } catch (GeneralSecurityException e) {
+        last = e;
+      }
+    }
+    throw (last != null) ? last : new GeneralSecurityException("Unsupported key algorithm in PKCS#8");
+  }
+
+  static java.security.cert.Certificate[] readCertsMulti(String leafPath, String chainPath) throws Exception {
+    CertificateFactory cf = CertificateFactory.getInstance("X.509");
+    List<java.security.cert.Certificate> list = new ArrayList<>();
+    try (InputStream is = Files.newInputStream(Paths.get(leafPath))) {
+      Collection<? extends java.security.cert.Certificate> leafs = cf.generateCertificates(is);
+      list.addAll(leafs);
+    }
+    if (chainPath != null && Files.isRegularFile(Paths.get(chainPath))) {
+      try (InputStream cs = Files.newInputStream(Paths.get(chainPath))) {
+        Collection<? extends java.security.cert.Certificate> chain = cf.generateCertificates(cs);
+        list.addAll(chain);
+      }
+    }
+    return list.toArray(new java.security.cert.Certificate[0]);
+  }
+
+  static KeyStore newBcfks(char[] pwd) throws Exception {
+    KeyStore ks = KeyStore.getInstance("BCFKS", PROV_NAME);
+    ks.load(null, pwd);
+    return ks;
+  }
+
+  public static void main(String[] args) throws Exception {
+    // Ensure BCFIPS provider is loaded
+    if (Security.getProvider(PROV_NAME) == null) {
+      Security.addProvider(
+        (Provider)Class.forName("org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider")
+                       .getDeclaredConstructor().newInstance()
+      );
+    }
+
+    String caPem     = System.getenv("CA_PEM");
+    String leafCrt   = System.getenv("SERVER_CRT");
+    String chainPem  = System.getenv("CHAIN_PEM");
+    String pk8Path   = System.getenv("SERVER_PK8");
+    String tsPath    = System.getenv("TRUSTSTORE_PATH");
+    String ksPath    = System.getenv("KEYSTORE_PATH");
+    char[] tsPass    = Optional.ofNullable(System.getenv("TRUSTSTORE_PASSWORD")).orElse("").toCharArray();
+    char[] ksPass    = Optional.ofNullable(System.getenv("KEY_PASSWORD")).orElse("").toCharArray();
+
+    // Build truststore (BCFKS) from ca.crt (may contain multiple PEM certs)
+    if (caPem != null && Files.isRegularFile(Paths.get(caPem)) && !Files.isRegularFile(Paths.get(tsPath))) {
+      KeyStore ts = newBcfks(tsPass);
+      CertificateFactory cf = CertificateFactory.getInstance("X.509");
+      try (InputStream is = Files.newInputStream(Paths.get(caPem))) {
+        int idx = 0;
+        for (java.security.cert.Certificate c : cf.generateCertificates(is)) {
+          ts.setCertificateEntry("ca-" + (idx++), c);
+        }
+      }
+      try (OutputStream os = Files.newOutputStream(Paths.get(tsPath))) {
+        ts.store(os, tsPass);
+      }
+      System.out.println("Wrote truststore: " + tsPath);
+    }
+
+    // Build keystore (BCFKS) from server.crt (+optional chain) + server.pk8
+    if (leafCrt != null && Files.isRegularFile(Paths.get(leafCrt)) &&
+        pk8Path != null && Files.isRegularFile(Paths.get(pk8Path)) &&
+        !Files.isRegularFile(Paths.get(ksPath))) {
+
+      PrivateKey key = readPkcs8Key(pk8Path);
+      java.security.cert.Certificate[] chain = readCertsMulti(
+        leafCrt, (chainPem != null && Files.isRegularFile(Paths.get(chainPem))) ? chainPem : null
+      );
+
+      KeyStore ks = newBcfks(ksPass);
+      ks.setKeyEntry("ninja-server", key, ksPass, chain);
+      try (OutputStream os = Files.newOutputStream(Paths.get(ksPath))) {
+        ks.store(os, ksPass);
+      }
+      System.out.println("Wrote keystore: " + ksPath);
+    }
+  }
+}
+***REMOVED***
+
+  echo "$(ts) Compiling MakeBcfks.java"
+  javac -cp "${BC_JAR}" /ninja/tmp/MakeBcfks.java
+
+  echo "$(ts) Generating BCFKS stores"
+  CA_PEM="${CA_PEM}" SERVER_CRT="${SERVER_CRT}" CHAIN_PEM="${CHAIN_PEM}" \
+  SERVER_PK8="${SERVER_PK8}" TRUSTSTORE_PATH="${TRUSTSTORE_PATH}" KEYSTORE_PATH="${KEYSTORE_PATH}" \
+  TRUSTSTORE_PASSWORD="${TRUSTSTORE_PASSWORD:-}" KEY_PASSWORD="${KEY_PASSWORD:-}" \
+  java -cp "/ninja/tmp:${BC_JAR}" MakeBcfks
+  rm -f /ninja/tmp/.need_makebcfks
+fi
+
+# ---------- 4) Force BCFKS at runtime (pin to BCFIPS) ----------
+RUNTIME_PROPS=""
+if [ -f "${TRUSTSTORE_PATH}" ] && [ -n "${TRUSTSTORE_PASSWORD:-}" ]; then
+  RUNTIME_PROPS="${RUNTIME_PROPS} \
+   -Djavax.net.ssl.trustStore=${TRUSTSTORE_PATH} \
+   -Djavax.net.ssl.trustStoreType=BCFKS \
+   -Djavax.net.ssl.trustStoreProvider=BCFIPS \
+   -Djavax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD}"
+fi
+if [ -f "${KEYSTORE_PATH}" ] && [ -n "${KEY_PASSWORD:-}" ]; then
+  RUNTIME_PROPS="${RUNTIME_PROPS} \
+   -Djavax.net.ssl.keyStore=${KEYSTORE_PATH} \
+   -Djavax.net.ssl.keyStoreType=BCFKS \
+   -Djavax.net.ssl.keyStoreProvider=BCFIPS \
+   -Djavax.net.ssl.keyStorePassword=${KEY_PASSWORD}"
+fi
+
+echo "$(ts) JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS}"
+[ -n "${TRUSTSTORE_PASSWORD:-}" ] && echo "$(ts) truststore: ${TRUSTSTORE_PATH} (pwd len: ${#TRUSTSTORE_PASSWORD})"
+[ -n "${KEY_PASSWORD:-}" ] && echo   "$(ts) keystore:   ${KEYSTORE_PATH} (pwd len: ${#KEY_PASSWORD})"
+
+# ---------- 5) Launch the app ----------
+APP_JAR="${APP_JAR:-/ninja/lib/app.jar}"
+if [ -f "$APP_JAR" ]; then
+  echo "$(ts) Launching Java app: ${APP_JAR}"
+  exec java ${JAVA_OPTS:-} ${RUNTIME_PROPS} -jar "${APP_JAR}"
+else
+  echo "[WARN] No ${APP_JAR}; sleeping for debug"
+  exec sleep 600
+fi
