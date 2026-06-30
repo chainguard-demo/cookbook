@@ -1,14 +1,10 @@
 #!/bin/bash
 
-export BASEURL="REDACTED"
-export CONSOLE_API_URL_QUERY="REDACTED"
-export CHAINGUARD_JAVA_IDENTITY_ID=REDACTED
-export CHAINGUARD_JAVA_TOKEN=REDACTED
-
 echo "Fetching gavs endpoint"
-curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" $BASEURL-/api/gavs 2>/dev/null | jq > gavs.json
+curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" $BASEURL-/api/gavs?page_size=1000 2>/dev/null | jq > gavs.json
 echo "GAVs found: $(jq '.gavs | length' gavs.json)"
-echo "Total fixes: $(jq '[.gavs[] | capture("cgr\\.(?<n>[0-9]+)") | .n | tonumber] | add // 0' gavs.json)"
+echo ".cgr fixes: $(jq '[.gavs[] | capture("cgr\\.(?<n>[0-9]+)") | .n | tonumber] | add // 0' gavs.json)"
+echo ".cgp fixes: $(jq '[.gavs[] | capture("cgp\\.(?<n>[0-9]+)") | .n | tonumber] | add // 0' gavs.json)"
 echo "saving results to gavs.json"
 
 mkdir -p jars patches
@@ -26,13 +22,34 @@ for gav in $(jq -r '.gavs[]' gavs.json); do
   if fixed_version=$(echo "$QUERYJSON" | jq -r '.vulns[].affected[].ranges[].events[] | select(has("fixed")) | .fixed' | head -1) && [ -n "$fixed_version" ]; then
       echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
   fi
+      
+      # JARURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
+      # PATCHURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
+    
+      # JAR_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "jars/$(basename "$JARURL")" -w "%{http_code}" "$JARURL")
+      # [ "$JAR_URL_HTTP_CODE" = "200" ] && echo "Success: $JARURL" || echo "Failed ($JAR_URL_HTTP_CODE): $JARURL"
   
-  JARURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
-  PATCHURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
-  
-  JAR_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "jars/$(basename "$JARURL")" -w "%{http_code}" "$JARURL")
-  [ "$JAR_URL_HTTP_CODE" = "200" ] && echo "Success: $JARURL" || echo "Failed ($JAR_URL_HTTP_CODE): $JARURL"
-  
-  PATCH_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "patches/$(basename "$PATCHURL")" -w "%{http_code}" "$PATCHURL")
-  [ "$PATCH_URL_HTTP_CODE" = "200" ] && echo "Success: $PATCHURL" || echo "Failed ($PATCH_URL_HTTP_CODE): $PATCHURL"
+      # PATCH_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "patches/$(basename "$PATCHURL")" -w "%{http_code}" "$PATCHURL")
+      # [ "$PATCH_URL_HTTP_CODE" = "200" ] && echo "Success: $PATCHURL" || echo "Failed ($PATCH_URL_HTTP_CODE): $PATCHURL"
+      
+  echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
+
+  VERSION_DIR="$BASEURL${group//.//}/${artifact//.//}/$version/"
+  GAV_DIR="artifacts/${group//.//}/${artifact//.//}/$version"
+  mkdir -p "$GAV_DIR"
+
+  LISTING=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s "$VERSION_DIR")
+  FILES=$(echo "$LISTING" | grep -oP '(?<=href=")[^"]+' | grep -v '^\.\./$')
+
+  if [ -z "$FILES" ]; then
+    echo "Failed: no listing returned for $VERSION_DIR"
+  else
+    while IFS= read -r FNAME; do
+      FILEURL="${VERSION_DIR}${FNAME}"
+      DEST="$GAV_DIR/$FNAME"
+
+      HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "$DEST" -w "%{http_code}" "$FILEURL")
+      [ "$HTTP_CODE" = "200" ] && echo "Saved: $DEST" || echo "Failed ($HTTP_CODE): $FILEURL"
+    done <<< "$FILES"
+  fi
 done
