@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Fetching gavs endpoint"
-curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" $BASEURL-/api/gavs?page_size=1000 2>/dev/null | jq > gavs.json
+curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" "$BASEURL-/api/gavs?page_size=1000" 2>/dev/null | jq > gavs.json
 echo "GAVs found: $(jq '.gavs | length' gavs.json)"
 echo ".cgr fixes: $(jq '[.gavs[] | capture("cgr\\.(?<n>[0-9]+)") | .n | tonumber] | add // 0' gavs.json)"
 echo ".cgp fixes: $(jq '[.gavs[] | capture("cgp\\.(?<n>[0-9]+)") | .n | tonumber] | add // 0' gavs.json)"
@@ -23,17 +23,6 @@ for gav in $(jq -r '.gavs[]' gavs.json); do
       echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
   fi
       
-      # JARURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
-      # PATCHURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
-    
-      # JAR_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "jars/$(basename "$JARURL")" -w "%{http_code}" "$JARURL")
-      # [ "$JAR_URL_HTTP_CODE" = "200" ] && echo "Success: $JARURL" || echo "Failed ($JAR_URL_HTTP_CODE): $JARURL"
-  
-      # PATCH_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "patches/$(basename "$PATCHURL")" -w "%{http_code}" "$PATCHURL")
-      # [ "$PATCH_URL_HTTP_CODE" = "200" ] && echo "Success: $PATCHURL" || echo "Failed ($PATCH_URL_HTTP_CODE): $PATCHURL"
-      
-  echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
-
   VERSION_DIR="$BASEURL${group//.//}/${artifact//.//}/$version/"
   GAV_DIR="artifacts/${group//.//}/${artifact//.//}/$version"
   mkdir -p "$GAV_DIR"
@@ -43,7 +32,17 @@ for gav in $(jq -r '.gavs[]' gavs.json); do
 
   if [ -z "$FILES" ]; then
     echo "Failed: no listing returned for $VERSION_DIR"
+    echo "Attempting to guess the .jar and -patches.zip URLs"
+    
+    # Fall back to guessing standard jar/patches URLs since the listing-based fetch failed
+    JARURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version.jar"
+    PATCHURL="$BASEURL${group//.//}/${artifact//.//}/$version/$artifact-$version-patches.zip"
+    JAR_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "$GAV_DIR/$(basename "$JARURL")" -w "%{http_code}" "$JARURL")
+    [ "$JAR_URL_HTTP_CODE" = "200" ] && echo "Saved: $DEST" || echo "Failed ($JAR_URL_HTTP_CODE): $JARURL"
+    PATCH_URL_HTTP_CODE=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" -s -o "$GAV_DIR/$(basename "$PATCHURL")" -w "%{http_code}" "$PATCHURL")
+    [ "$PATCH_URL_HTTP_CODE" = "200" ] && echo "Saved: $DEST" || echo "Failed ($PATCH_URL_HTTP_CODE): $PATCHURL"
   else
+    echo "Found file listing for $VERSION_DIR"
     while IFS= read -r FNAME; do
       FILEURL="${VERSION_DIR}${FNAME}"
       DEST="$GAV_DIR/$FNAME"
