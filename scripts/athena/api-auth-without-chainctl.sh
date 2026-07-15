@@ -3,7 +3,9 @@
 # In this example I login to the Chainguard Console and using the OIDC integrations (Google in my case) and then use that OIDC token to programmatically make API calls
 export CONSOLE_API_URL_QUERY="https://console-api.enforce.dev/argos/v1/osv/query"
 export AUDIENCE="https://console-api.enforce.dev"
-export IDENTITY="a79ad76794eb3869959effe72929836b37b34ecb"
+# I grabbed my identity from the output of $ chainctl auth status
+# The identity can also be ontained through the console under settings
+export IDENTITY=""
 export PORT=8989
 
 printf 'HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nDone' | nc -l "$PORT" > /tmp/cg_callback &
