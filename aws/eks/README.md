@@ -27,7 +27,7 @@ It uses Chainguard Helm Charts to deploy common addons like `kube-proxy` and
 
 ```hcl
 module "eks" {
-  source = "github.com/chainguard_demo/cookbook//aws/eks"
+  source = "github.com/chainguard-dev/cookbook//aws/eks"
 
   region             = "us-west-2"
   cluster_name       = "my-cluster"
