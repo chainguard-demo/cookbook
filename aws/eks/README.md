@@ -27,7 +27,7 @@ It uses Chainguard Helm Charts to deploy common addons like `kube-proxy` and
 
 ```hcl
 module "eks" {
-  source = "github.com/chainguard-dev/cookbook//aws/eks"
+  source = "github.com/chainguard_demo/cookbook//aws/eks"
 
   region             = "us-west-2"
   cluster_name       = "my-cluster"
@@ -49,7 +49,7 @@ chainctl auth pull-token create \
   | tee /tmp/pull-token.json
 
 # Export the token credentials
-export TF_VAR_chainguard_pull_username=$(jq -r '.username // .id' /tmp/pull-token.json)
+export TF_VAR_chainguard_pull_username=$(jq -r '.username // .identity_id' /tmp/pull-token.json)
 export TF_VAR_chainguard_pull_token=$(jq -r '.password // .token' /tmp/pull-token.json)
 
 # Apply the terraform
