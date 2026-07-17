@@ -83,6 +83,8 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
+  # Previously this was set to true and the cluster failed to properly deploy due to permissions issues.
+  # Resolved the issue with this:
   # Grant the terraform-running identity (resolved to its underlying IAM role,
   # see data.aws_iam_session_context above) cluster-admin so the helm provider
   # can create CRDs. We do this explicitly instead of via
