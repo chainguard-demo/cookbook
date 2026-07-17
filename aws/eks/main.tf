@@ -2,6 +2,21 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# The identity running `terraform apply` also drives the helm/kubernetes
+# providers, which install cluster-scoped CRDs (vpc-cni's ENIConfig, the
+# cert-manager CRDs, etc.). That needs cluster-admin RBAC.
+#
+# `aws_caller_identity.arn` is the STS *session* ARN (e.g. for SSO:
+# arn:aws:sts::<acct>:assumed-role/AWSReservedSSO_.../<user>), which does not
+# match an EKS access entry. `aws_iam_session_context` resolves it back to the
+# underlying IAM role ARN, which we grant an access entry below. This is more
+# reliable than `enable_cluster_creator_admin_permissions`, which keys off the
+# raw session ARN and silently leaves assumed-role/SSO callers without admin.
+# (aws_caller_identity.current is declared in ecr.tf.)
+data "aws_iam_session_context" "current" {
+  arn = data.aws_caller_identity.current.arn
+}
+
 # Single random suffix shared by every AWS resource the module names —
 # the EKS cluster, IAM roles, secrets, ECR pull-through prefix, etc.
 # Keepers tie regeneration to the input cluster_name, so the value is
@@ -68,7 +83,26 @@ module "eks" {
   subnet_ids                     = module.vpc.private_subnets
   cluster_endpoint_public_access = true
 
-  enable_cluster_creator_admin_permissions = true
+  # Grant the terraform-running identity (resolved to its underlying IAM role,
+  # see data.aws_iam_session_context above) cluster-admin so the helm provider
+  # can create CRDs. We do this explicitly instead of via
+  # enable_cluster_creator_admin_permissions so assumed-role/SSO callers work.
+  authentication_mode = "API_AND_CONFIG_MAP"
+
+  access_entries = {
+    terraform_runner = {
+      principal_arn = data.aws_iam_session_context.current.issuer_arn
+
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
 
   # All networking, DNS, and storage addons (kube-proxy, vpc-cni, coredns,
   # aws-ebs-csi-driver) are installed via Chainguard Helm charts in
