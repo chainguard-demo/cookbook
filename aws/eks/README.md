@@ -6,6 +6,7 @@ It uses Chainguard Helm Charts to deploy common addons like `kube-proxy` and
 `coredns`.
 
 ## What's Deployed
+Ref tfdocs.md for a full list of all resources, inputs, and outputs.
 
 | Component                                 | Source                            | Chart                          | Pinned version |
 | ----------------------------------------- | --------------------------------- | ------------------------------ | -------------- |
