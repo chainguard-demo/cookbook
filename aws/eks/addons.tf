@@ -7,14 +7,14 @@ locals {
   cg_chart_versions = {
     aws-vpc-cni                  = "1.21.1"
     kube-proxy                   = "0.0.9"
-    coredns                      = "1.45.2"
-    aws-ebs-csi-driver           = "2.59.0"
-    cert-manager                 = "v1.20.2"
-    aws-load-balancer-controller = "3.3.0"
+    coredns                      = "1.46.0"
+    aws-ebs-csi-driver           = "2.62.0"
+    cert-manager                 = "v1.21.0"
+    aws-load-balancer-controller = "3.4.2"
     external-dns                 = "1.21.1"
-    metrics-server               = "3.13.0"
-    cluster-autoscaler           = "9.57.0"
-    kube-state-metrics           = "7.3.0"
+    metrics-server               = "3.13.1"
+    cluster-autoscaler           = "9.58.0"
+    kube-state-metrics           = "7.5.2"
   }
 }
 
