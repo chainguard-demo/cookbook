@@ -1,7 +1,0 @@
-{
-    "name": "chainguard/php-example",
-    "description": "Simple PHP web application using Chainguard PHP image",
-    "require": {
-        "php": ">=8.3"
-    }
-}
