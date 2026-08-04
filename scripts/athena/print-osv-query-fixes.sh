@@ -1,9 +1,27 @@
 #!/bin/bash
 
 echo "Fetching gavs endpoint"
-curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" "$BASEURL-/api/gavs?page_size=1000" 2>/dev/null | jq > gavs.json
-echo "GAVs found: $(jq '.gavs | length' gavs.json)"
+page_token=""
+echo '{"gavs": []}' > gavs.json
+
+while :; do
+    if [ -n "$page_token" ]; then
+        url="$BASEURL-/api/gavs?page_size=10000&page_token=$page_token"
+    else
+        url="$BASEURL-/api/gavs?page_size=10000"
+    fi
+    
+    response=$(curl -L --user "$CHAINGUARD_JAVA_IDENTITY_ID:$CHAINGUARD_JAVA_TOKEN" "$url" 2>/dev/null)
+    jq --argjson new "$(echo "$response" | jq '.gavs // []')" \
+        '.gavs += $new' gavs.json > gavs.json.tmp && mv gavs.json.tmp gavs.json
+    page_token=$(echo "$response" | jq -r '.next_page_token // empty')
+    if [ -z "$page_token" ]; then
+        break
+    fi
+done
+
 echo "saving results to gavs.json"
+echo "Unique artifacts (GAVs) found: $(jq '.gavs | length' gavs.json)"
 
 echo ".cgp fixes: $(jq '
   [.gavs[] | . as $gav
@@ -18,19 +36,35 @@ echo ".cgp fixes: $(jq '
   | add // 0
 ' gavs.json)"
 
-mkdir -p jars patches
-for gav in $(jq -r '.gavs[]' gavs.json); do
-  
+# Build a deduped list of "group:artifact:baseversion" keys
+gav_keys=$(jq -r '.gavs[]' gavs.json | while read -r gav; do
   group=$(echo "$gav" | cut -d: -f1)
   artifact=$(echo "$gav" | cut -d: -f2)
   version=$(echo "$gav" | cut -d: -f3)
+  baseversion=$(echo "$version" | sed -E 's/\.cgp\.[0-9]+//')
+  echo "${group}:${artifact}:${baseversion}"
+done | sort -u)
+
+while IFS=: read -r group artifact baseversion; do
+
+  # echo "OSV Query: ${group}:${artifact}:${baseversion}"
   name="${group}:${artifact}"
+  
   QUERYJSON=$(curl -s "$CONSOLE_API_URL_QUERY" \
        -H "Authorization: Bearer $(chainctl auth token)" \
        -H 'Content-Type: application/json' \
        -d "{\"package\":{\"ecosystem\":\"Maven\",\"name\":\"${name}\"}}" | jq)
-  
-  if fixed_version=$(echo "$QUERYJSON" | jq -r '.vulns[].affected[].ranges[].events[] | select(has("fixed")) | .fixed' | head -1) && [ -n "$fixed_version" ]; then
-      echo "OSV Fixed Data Found for Artifact: $group:$artifact:$fixed_version"
+
+  read -r fixed_version id < <(echo "$QUERYJSON" | jq -r '
+    [.vulns[]
+      | . as $v
+      | ($v.affected[].ranges[].events[] | select(has("fixed")) | .fixed) as $f
+      | "\($f)\t\($v.id)"
+    ] | first // empty
+  ' | tr '\t' ' ')
+
+  if [ -n "$fixed_version" ]; then
+      echo "Fix available for $id: Update $group:$artifact:$baseversion ==> $group:$artifact:$fixed_version "
   fi
-done
+
+done <<< "$gav_keys"
