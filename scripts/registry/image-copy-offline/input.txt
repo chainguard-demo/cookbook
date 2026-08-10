@@ -1,0 +1,2 @@
+cgr.dev/foo.com/go:latest=localhost:5000/go:newtag
+cgr.dev/foo.com/node@sha256:510f6e5a345047cdbc4c07dea058482f2883fc08cc48e5e35e51211558db8f9d=localhost:5000/node:withasha
