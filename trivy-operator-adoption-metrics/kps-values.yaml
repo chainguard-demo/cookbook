@@ -1,0 +1,141 @@
+# kube-prometheus-stack values.
+#
+# The interesting bit is the kube-state-metrics subchart: we enable
+# CustomResourceStateMetrics so KSM emits a metric per trivy-operator
+# VulnerabilityReport, labelled with the scanned image's OS release.
+#
+# __ORG__ is templated by bootstrap.sh to the ORG_NAME argument, so image
+# repositories point at cgr.dev/<org>/<image>.
+
+# Propagated to every subchart's ServiceAccount / pod spec so trivy-operator's
+# scan pods can pull the target images' manifests from cgr.dev. Without this
+# the private images scan fine at kubelet level (node has creds) but the
+# operator's scanner runs inside a pod and needs its own auth. The referenced
+# "regcred" Secret is created per-namespace by bootstrap.sh.
+global:
+  imagePullSecrets:
+    - name: regcred
+
+# ---- top-level (chart-provided) images ----
+# prometheus-operator parses the image tag as a semver to pick which feature
+# set to emit; "latest" doesn't parse, so we also set an explicit `version`.
+alertmanager:
+  alertmanagerSpec:
+    version: 0.33.1
+    image:
+      registry: cgr.dev
+      repository: __ORG__/prometheus-alertmanager
+      tag: latest
+      sha: ""
+
+prometheus:
+  prometheusSpec:
+    version: v3.13.2
+    retention: 6h
+    resources:
+      requests:
+        memory: 200Mi
+    image:
+      registry: cgr.dev
+      repository: __ORG__/prometheus
+      tag: latest
+      sha: ""
+
+prometheusOperator:
+  image:
+    registry: cgr.dev
+    repository: __ORG__/prometheus-operator
+    tag: latest
+    sha: ""
+  prometheusConfigReloader:
+    image:
+      registry: cgr.dev
+      repository: __ORG__/prometheus-config-reloader
+      tag: latest
+      sha: ""
+  admissionWebhooks:
+    deployment:
+      image:
+        registry: cgr.dev
+        repository: __ORG__/prometheus-admission-webhook
+        tag: latest
+        sha: ""
+    patch:
+      image:
+        registry: cgr.dev
+        repository: __ORG__/kube-webhook-certgen
+        tag: latest
+        sha: ""
+
+# ---- kube-state-metrics subchart: image + CustomResourceStateMetrics ----
+kube-state-metrics:
+  image:
+    registry: cgr.dev
+    repository: __ORG__/kube-state-metrics
+    tag: latest
+
+  rbac:
+    extraRules:
+      - apiGroups: ["aquasecurity.github.io"]
+        resources: ["vulnerabilityreports"]
+        verbs: ["list", "watch"]
+
+  extraArgs:
+    - --custom-resource-state-only=false
+    - --custom-resource-state-config-file=/etc/customresourcestate/config.yaml
+
+  customResourceState:
+    enabled: true
+    config:
+      kind: CustomResourceStateMetrics
+      spec:
+        resources:
+          - groupVersionKind:
+              group: aquasecurity.github.io
+              version: v1alpha1
+              kind: VulnerabilityReport
+            metricNamePrefix: trivy_operator
+            # Use "name" (matching trivy-operator's own metric labels) so joins
+            # like trivy_image_vulnerabilities * on(namespace, name) work directly.
+            labelsFromPath:
+              namespace: [metadata, namespace]
+              name:      [metadata, name]
+            metrics:
+              - name: vulnerability_report_info
+                help: "OS release info from trivy-operator VulnerabilityReports"
+                each:
+                  type: Info
+                  info:
+                    labelsFromPath:
+                      image_repository: [report, artifact, repository]
+                      image_tag:        [report, artifact, tag]
+                      os_family:        [report, os, family]
+                      os_name:          [report, os, name]
+
+# ---- grafana subchart: image, sidecar image, dashboard sidecar config ----
+grafana:
+  adminPassword: admin
+  image:
+    registry: cgr.dev
+    repository: __ORG__/grafana
+    tag: latest
+  sidecar:
+    image:
+      registry: cgr.dev
+      repository: __ORG__/k8s-sidecar
+      tag: latest
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+      label: grafana_dashboard
+      labelValue: "1"
+
+# ---- prometheus-node-exporter subchart ----
+# distroless=false stops the subchart appending "-distroless" to the tag
+# (the Chainguard image is already distroless; kps overrides this to true).
+prometheus-node-exporter:
+  image:
+    registry: cgr.dev
+    repository: __ORG__/prometheus-node-exporter
+    tag: latest
+    distroless: false

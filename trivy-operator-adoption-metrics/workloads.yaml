@@ -1,0 +1,118 @@
+# Example workloads pulling private Chainguard images from cgr.dev/<ORG_NAME>.
+# __ORG__ is templated by bootstrap.sh to the ORG_NAME argument, and each pod
+# references the "regcred" pull secret that bootstrap.sh creates in this
+# namespace so both kubelet AND trivy-operator's scan pods can auth to cgr.dev.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cg-workloads
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: cg-workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: nginx
+          image: cgr.dev/__ORG__/nginx:latest
+          ports:
+            - containerPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python
+  namespace: cg-workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python
+  template:
+    metadata:
+      labels:
+        app: python
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: python
+          image: cgr.dev/__ORG__/python:latest
+          command: ["sleep", "infinity"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node
+  namespace: cg-workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node
+  template:
+    metadata:
+      labels:
+        app: node
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: node
+          image: cgr.dev/__ORG__/node:latest
+          command: ["sleep", "infinity"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox
+  namespace: cg-workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: busybox
+          image: cgr.dev/__ORG__/busybox:latest
+          command: ["sleep", "infinity"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: cg-workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: redis
+          image: cgr.dev/__ORG__/redis:latest
