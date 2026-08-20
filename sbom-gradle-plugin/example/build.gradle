@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+    id 'example.chainguard.sbom' version '0.1.0-SNAPSHOT'
+}
+
+group = 'example.chainguard.consumer'
+version = '1.0.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+/*
+    Chainguard Libraries for Java is the only repository. Both jars and their
+    SBOM sidecars come from here — one endpoint, one credential. Dependencies
+    not built by Chainguard are served via upstream fallback (with malware
+    scanning + cooldown) if enabled on your account.
+
+    Credentials are read from environment variables so this file can be
+    committed safely. Mint a pull token first:
+
+        chainctl auth pull-token create --repository=java --ttl=720h
+
+    Then export them:
+
+        export CHAINGUARD_JAVA_IDENTITY_ID=...
+        export CHAINGUARD_JAVA_TOKEN=...
+*/
+repositories {
+    maven {
+        name = 'chainguard'
+        url = 'https://libraries.cgr.dev/java/'
+        credentials {
+            username = System.getenv("CHAINGUARD_JAVA_IDENTITY_ID")
+            password = System.getenv("CHAINGUARD_JAVA_TOKEN")
+        }
+        mavenContent {
+            releasesOnly()
+        }
+    }
+}
+
+dependencies {
+    // Chainguard's documentation uses commons-compress 1.23.0 as its canonical
+    // example of a library with SBOM/SLSA sidecars available.
+    implementation 'org.apache.commons:commons-compress:1.23.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.2'
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+}
+
+/*
+    No `chainguardSbom { ... }` block: the defaults fetch every format
+    Chainguard publishes (SPDX + SLSA attestation) into build/chainguard-sboms.
+*/

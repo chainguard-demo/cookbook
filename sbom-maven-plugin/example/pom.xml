@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>example.chainguard.consumer</groupId>
+    <artifactId>sbom-example</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Chainguard SBOM Plugin — example consumer</name>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+    </properties>
+
+    <!--
+        Chainguard Libraries for Java is the only repository. Both jars and
+        their SBOM sidecars come from here — one endpoint, one credential.
+        Dependencies not built by Chainguard are served via upstream fallback
+        (with malware scanning + cooldown) if enabled on your account.
+    -->
+    <repositories>
+        <repository>
+            <id>chainguard</id>
+            <url>https://libraries.cgr.dev/java/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
+
+    <!--
+        Chainguard Libraries also serves Maven build plugins (maven-compiler-plugin,
+        maven-jar-plugin, etc.) from the same endpoint. One URL for the whole build.
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>chainguard</id>
+            <url>https://libraries.cgr.dev/java/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <dependencies>
+        <!--
+            Chainguard's documentation uses commons-compress 1.23.0 as its
+            canonical example of a library with SBOM/SLSA sidecars available.
+        -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.23.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.13</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>example.chainguard</groupId>
+                <artifactId>sbom-maven-plugin</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+                <!-- No <configuration> block: the default fetches every format
+                     Chainguard publishes (SPDX + SLSA attestation). -->
+                <executions>
+                    <execution>
+                        <id>collect-sboms</id>
+                        <goals><goal>collect</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

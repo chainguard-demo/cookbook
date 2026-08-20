@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Credentials for the Chainguard Libraries repository. Values are read from
+    environment variables so this file can be committed safely. See the plugin
+    README for how to mint a pull token and export CHAINGUARD_JAVA_IDENTITY_ID
+    and CHAINGUARD_JAVA_TOKEN before running mvn.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0">
+    <servers>
+        <server>
+            <id>chainguard</id>
+            <username>${env.CHAINGUARD_JAVA_IDENTITY_ID}</username>
+            <password>${env.CHAINGUARD_JAVA_TOKEN}</password>
+        </server>
+    </servers>
+</settings>
