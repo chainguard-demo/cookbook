@@ -98,11 +98,12 @@ You should see something like:
 
 ```
 > Task :collectSboms
-Resolving SBOMs for 5 dependencies via 1 configured repositories.
-Chainguard SBOMs: 10 fetched, 0 not available, 0 errored.
+Resolving SBOMs for 7 dependencies via 2 configured repositories.
+Chainguard SBOMs: 14 fetched, 0 not available, 0 errored.
 ```
 
-(Five deps because Jackson pulls in two transitives.)
+(Seven deps because Jackson pulls in two transitives and log4j-core pulls
+in log4j-api.)
 
 **4. Inspect the output.**
 
@@ -123,6 +124,12 @@ build/chainguard-sboms
 ├── org/apache/commons/commons-compress/1.23.0/
 │   ├── commons-compress-1.23.0.slsa-attestation.json
 │   └── commons-compress-1.23.0.spdx.json
+├── org/apache/logging/log4j/log4j-api/2.23.1-0.cgr.1/
+│   ├── log4j-api-2.23.1-0.cgr.1.slsa-attestation.json
+│   └── log4j-api-2.23.1-0.cgr.1.spdx.json
+├── org/apache/logging/log4j/log4j-core/2.23.1-0.cgr.1/
+│   ├── log4j-core-2.23.1-0.cgr.1.slsa-attestation.json
+│   └── log4j-core-2.23.1-0.cgr.1.spdx.json
 └── org/slf4j/slf4j-api/2.0.13/
     ├── slf4j-api-2.0.13.slsa-attestation.json
     └── slf4j-api-2.0.13.spdx.json

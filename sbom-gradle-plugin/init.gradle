@@ -1,4 +1,3 @@
-def cgUrl = 'https://libraries.cgr.dev/java/'
 def cgUser = System.getenv('CHAINGUARD_JAVA_IDENTITY_ID')
 def cgPass = System.getenv('CHAINGUARD_JAVA_TOKEN')
 
@@ -8,19 +7,26 @@ if (!cgUser || !cgPass) {
         "CHAINGUARD_JAVA_TOKEN in the environment.")
 }
 
+def chainguardRepositories = { rh ->
+    rh.maven {
+        name = 'chainguard-remediated'
+        url = 'https://libraries.cgr.dev/java-remediated/'
+        credentials { username = cgUser; password = cgPass }
+        mavenContent { releasesOnly() }
+    }
+    rh.maven {
+        name = 'chainguard'
+        url = 'https://libraries.cgr.dev/java/'
+        credentials { username = cgUser; password = cgPass }
+        mavenContent { releasesOnly() }
+    }
+}
+
 gradle.beforeSettings { settings ->
     settings.pluginManagement {
         repositories {
             clear()
-            maven {
-                name = 'chainguard'
-                url = cgUrl
-                credentials {
-                    username = cgUser
-                    password = cgPass
-                }
-                mavenContent { releasesOnly() }
-            }
+            chainguardRepositories(delegate)
         }
     }
 }
@@ -28,16 +34,6 @@ gradle.beforeSettings { settings ->
 allprojects {
     afterEvaluate { project ->
         project.repositories.clear()
-        project.repositories {
-            maven {
-                name = 'chainguard'
-                url = cgUrl
-                credentials {
-                    username = cgUser
-                    password = cgPass
-                }
-                mavenContent { releasesOnly() }
-            }
-        }
+        chainguardRepositories(project.repositories)
     }
 }

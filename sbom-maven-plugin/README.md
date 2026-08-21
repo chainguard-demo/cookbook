@@ -105,15 +105,14 @@ You should see something like:
 
 ```
 [INFO] --- sbom:0.1.0-SNAPSHOT:collect ---
-[INFO] Resolving SBOMs for 5 dependencies via 2 configured repositories.
+[INFO] Resolving SBOMs for 7 dependencies via 3 configured repositories.
 [INFO] Downloading from chainguard: https://libraries.cgr.dev/java/org/apache/commons/commons-compress/1.23.0/commons-compress-1.23.0.spdx.json
 ...
-[INFO] Chainguard SBOMs: 10 fetched, 0 not available, 0 errored.
+[INFO] Chainguard SBOMs: 14 fetched, 0 not available, 0 errored.
 ```
 
-(Five deps because Jackson pulls in two transitives; two repositories
-because Maven adds Central by default alongside the Chainguard one
-declared in `pom.xml`.)
+(Seven deps because Jackson pulls in two transitives and log4j-core pulls
+in log4j-api.)
 
 **4. Inspect the output.**
 
@@ -134,6 +133,12 @@ target/chainguard-sboms
 ├── org/apache/commons/commons-compress/1.23.0/
 │   ├── commons-compress-1.23.0.slsa-attestation.json
 │   └── commons-compress-1.23.0.spdx.json
+├── org/apache/logging/log4j/log4j-api/2.23.1-0.cgr.1/
+│   ├── log4j-api-2.23.1-0.cgr.1.slsa-attestation.json
+│   └── log4j-api-2.23.1-0.cgr.1.spdx.json
+├── org/apache/logging/log4j/log4j-core/2.23.1-0.cgr.1/
+│   ├── log4j-core-2.23.1-0.cgr.1.slsa-attestation.json
+│   └── log4j-core-2.23.1-0.cgr.1.spdx.json
 └── org/slf4j/slf4j-api/2.0.13/
     ├── slf4j-api-2.0.13.slsa-attestation.json
     └── slf4j-api-2.0.13.spdx.json

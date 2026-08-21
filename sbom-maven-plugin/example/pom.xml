@@ -25,6 +25,12 @@
     -->
     <repositories>
         <repository>
+            <id>chainguard-remediated</id>
+            <url>https://libraries.cgr.dev/java-remediated/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
             <id>chainguard</id>
             <url>https://libraries.cgr.dev/java/</url>
             <releases><enabled>true</enabled></releases>
@@ -37,6 +43,12 @@
         maven-jar-plugin, etc.) from the same endpoint. One URL for the whole build.
     -->
     <pluginRepositories>
+        <pluginRepository>
+            <id>chainguard-remediated</id>
+            <url>https://libraries.cgr.dev/java-remediated/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
         <pluginRepository>
             <id>chainguard</id>
             <url>https://libraries.cgr.dev/java/</url>
@@ -64,6 +76,11 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>2.0.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.23.1-0.cgr.1</version>
         </dependency>
     </dependencies>
 
