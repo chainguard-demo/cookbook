@@ -14,9 +14,11 @@ See [Example](#example) for an example that demonstrates how the plugin works.
 To use this plugin you must either build it locally, or host it yourself in your
 own `pluginRepository` (Artifactory, Nexus etc).
 
+Export a Chainguard pull token (see [Prerequisites](#prerequisites)), then:
+
 ```
-mvn test         # unit tests
-mvn install      # install to ~/.m2/repository
+mvn -s settings.xml test         # unit tests
+mvn -s settings.xml install      # install to ~/.m2/repository
 ```
 
 Then, you can add it to your `pom.xml` like:
@@ -89,7 +91,7 @@ The example's `settings.xml` reads them from there.
 **2. Build and install the plugin into your local Maven cache.**
 
 ```
-mvn install
+mvn -s settings.xml install
 ```
 
 **3. Change into the example project and run the plugin.**

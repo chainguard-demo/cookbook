@@ -14,9 +14,11 @@ See [Example](#example) for an example that demonstrates how the plugin works.
 To use this plugin you must either build it locally, or host it yourself in your
 own plugin repository (Artifactory, Nexus etc).
 
+Export a Chainguard pull token (see [Prerequisites](#prerequisites)), then:
+
 ```
-gradle test                # unit tests
-gradle publishToMavenLocal # install to ~/.m2/repository so mavenLocal() finds it
+gradle -I init.gradle test                # unit tests
+gradle -I init.gradle publishToMavenLocal # install to ~/.m2/repository so mavenLocal() finds it
 ```
 
 Then, apply it in your `build.gradle` like:
@@ -82,7 +84,7 @@ The example's `build.gradle` reads them from there.
 **2. Build and publish the plugin into your local Maven cache.**
 
 ```
-gradle publishToMavenLocal
+gradle -I init.gradle publishToMavenLocal
 ```
 
 **3. Change into the example project and run the plugin.**

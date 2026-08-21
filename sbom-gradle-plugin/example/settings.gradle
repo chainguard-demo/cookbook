@@ -1,7 +1,7 @@
 /*
     Make the locally-published plugin discoverable. `gradle publishToMavenLocal`
-    in the plugin project drops the plugin into ~/.gradle-style mavenLocal, and
-    this block tells Gradle to look there first when resolving plugin IDs.
+    in the plugin project drops the plugin into ~/.m2/repository, and this
+    block tells Gradle to look there first when resolving plugin IDs.
 */
 pluginManagement {
     repositories {
