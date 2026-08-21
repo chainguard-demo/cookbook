@@ -1,0 +1,38 @@
+plugins {
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+}
+
+group = 'example.chainguard'
+version = '0.1.0-SNAPSHOT'
+description = 'Collects SBOM sidecar files (SPDX + SLSA attestations) that Chainguard publishes next to Java library jars, using the project\'s already-configured Gradle repositories so mirrors and credentials transfer automatically.'
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+gradlePlugin {
+    plugins {
+        sbomPlugin {
+            id = 'example.chainguard.sbom'
+            implementationClass = 'example.chainguard.sbom.SbomPlugin'
+            displayName = 'Chainguard SBOM Gradle Plugin'
+            description = project.description
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}

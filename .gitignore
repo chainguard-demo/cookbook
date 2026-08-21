@@ -1,4 +1,10 @@
 fips/java/target/
+sbom-maven-plugin/target/
+sbom-maven-plugin/example/target/
+sbom-gradle-plugin/.gradle/
+sbom-gradle-plugin/build/
+sbom-gradle-plugin/example/.gradle/
+sbom-gradle-plugin/example/build/
 
 # Terraform
 **/*.tfvars
