@@ -12,10 +12,12 @@ java {
 }
 
 /*
-    Chainguard Libraries for Java is the only repository. Both jars and their
-    SBOM sidecars come from here — one endpoint, one credential. Dependencies
-    not built by Chainguard are served via upstream fallback (with malware
-    scanning + cooldown) if enabled on your account.
+Chainguard Libraries for Java provides two repository endpoints — a
+standard endpoint and a remediated endpoint that serves CVE-patched builds.
+Both jars and their SBOM sidecars come from Chainguard, using the same
+credential across both endpoints. Dependencies not built by Chainguard are
+served via upstream fallback (with malware scanning + cooldown) if enabled
+on your account.
 
     Credentials are read from environment variables so this file can be
     committed safely. Mint a pull token first:
