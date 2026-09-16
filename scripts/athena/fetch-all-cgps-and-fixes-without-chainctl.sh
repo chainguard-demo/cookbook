@@ -36,6 +36,7 @@ if [ -z "${IDENTITY_TOKEN:-}" ]; then
   echo "Error: IDENTITY_TOKEN is not set" >&2
   echo "Running this script requires a Chainguard Session Token saved to the IDENTITY_TOKEN variable"
   echo "Please see comments on how to set this variable"
+  echo "Note: The user must have the argos.osv.dumper role"
   exit 1
 fi
 
