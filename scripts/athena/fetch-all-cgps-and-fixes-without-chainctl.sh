@@ -7,7 +7,7 @@ export CONSOLE_API_URL_DUMP="https://console-api.enforce.dev/argos/v1/osv/dump"
 export AUDIENCE="https://console-api.enforce.dev"
 # I grabbed my identity from the output of $ chainctl auth status
 # The identity can also be ontained through the console under settings
-export IDENTITY="a79ad76794eb3869959effe72929836b37b34ecb"
+export IDENTITY=""
 export PORT=8989
 export OSVFILE="osv-dump.tgz"
 export STREAM="osv-dump.ndjson"
