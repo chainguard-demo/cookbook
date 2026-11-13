@@ -1,0 +1,146 @@
+name: Rotate a Chainguard pull token
+
+# Creates a pull token, stores its username and password as repository
+# secrets, then deletes the older tokens with the same name. See
+# pull-token-rotation/README.md for the identity and GitHub token it needs.
+on:
+  workflow_call:
+    inputs:
+      identity:
+        description: Chainguard identity to assume. It needs to create pull tokens for the repository types, and identity.list and identity.delete to remove older ones.
+        required: true
+        type: string
+      parent:
+        description: Organization or folder the pull token belongs to, passed to --parent.
+        required: true
+        type: string
+      name:
+        description: Pull token name, passed to --name. Older tokens with this name are deleted.
+        required: true
+        type: string
+      repositories:
+        description: Comma-separated repository types, passed to --repository, such as oci, apk, javascript or "go,python".
+        required: false
+        type: string
+        default: oci
+      ttl:
+        description: Pull token lifetime, passed to --ttl. The maximum depends on the organization's plan.
+        required: false
+        type: string
+        default: 720h
+      description:
+        description: Pull token description, passed to --description. Defaults to one naming the calling workflow run.
+        required: false
+        type: string
+        default: ""
+      username-secret:
+        description: Secret to store the pull token's username in.
+        required: true
+        type: string
+      password-secret:
+        description: Secret to store the pull token's password in.
+        required: true
+        type: string
+      secret-repository:
+        description: Repository to set the secrets on, as owner/name. Defaults to the calling repository.
+        required: false
+        type: string
+        default: ""
+      secret-app:
+        description: Which secrets to set, passed to gh secret set --app; one of dependabot, actions or codespaces.
+        required: false
+        type: string
+        default: dependabot
+      delete-older:
+        description: Delete older pull tokens with the same name once the secrets are updated.
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      github-token:
+        description: Token that can write the secrets on secret-repository; GITHUB_TOKEN can't.
+        required: true
+
+permissions: {}
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    # Runs for the same token queue, so two never delete each other's token.
+    concurrency:
+      group: rotate-pull-token-${{ inputs.parent }}-${{ inputs.name }}
+      cancel-in-progress: false
+    env:
+      PARENT: ${{ inputs.parent }}
+      TOKEN_NAME: ${{ inputs.name }}
+      REPOSITORIES: ${{ inputs.repositories }}
+      TTL: ${{ inputs.ttl }}
+      DESCRIPTION: ${{ inputs.description }}
+      USERNAME_SECRET: ${{ inputs.username-secret }}
+      PASSWORD_SECRET: ${{ inputs.password-secret }}
+      SECRET_REPOSITORY: ${{ inputs.secret-repository || github.repository }}
+      SECRET_APP: ${{ inputs.secret-app }}
+    steps:
+      # The name can't contain " - ", the separator chainctl puts between the
+      # name and the roles it stores, so matching older tokens stays exact.
+      - name: Check inputs
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+          [[ "${TOKEN_NAME}" =~ ^[A-Za-z0-9._-]+$ ]] || fail "name may only contain letters, digits, '.', '_' and '-'"
+          [[ "${REPOSITORIES}" =~ ^[a-z_]+(,[a-z_]+)*$ ]] || fail "repositories must be a comma-separated list of repository types"
+          for s in "${USERNAME_SECRET}" "${PASSWORD_SECRET}"; do
+            [[ "${s}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || fail "secret names may only contain letters, digits and '_', and can't start with a digit"
+          done
+          case "${SECRET_APP}" in
+            dependabot|actions|codespaces) ;;
+            *) fail "secret-app must be dependabot, actions or codespaces" ;;
+          esac
+          if [ -z "${DESCRIPTION}" ]; then
+            echo "DESCRIPTION=Rotated by ${GITHUB_REPOSITORY} run ${GITHUB_RUN_ID} for ${SECRET_REPOSITORY}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Authenticate to Chainguard
+        uses: chainguard-dev/setup-chainctl@bfe7503a12660737d9d66d02d2610a399d804316 # v0.6.0
+        with:
+          identity: ${{ inputs.identity }}
+
+      - name: Create the pull token and update the secrets
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.github-token }}
+        run: |
+          created=$(chainctl auth pull-token create \
+            --parent="${PARENT}" \
+            --name="${TOKEN_NAME}" \
+            --repository="${REPOSITORIES}" \
+            --description="${DESCRIPTION}" \
+            --ttl="${TTL}" \
+            -o json)
+          token=$(jq -r '.token // empty' <<<"${created}")
+          echo "::add-mask::${token}"
+          id=$(jq -r '.identity_id // empty' <<<"${created}")
+          if [ -z "${id}" ] || [ -z "${token}" ]; then
+            echo "::error::chainctl auth pull-token create returned no identity_id or token"
+            exit 1
+          fi
+          printf '%s' "${id}" | gh secret set "${USERNAME_SECRET}" --app "${SECRET_APP}" --repo "${SECRET_REPOSITORY}"
+          printf '%s' "${token}" | gh secret set "${PASSWORD_SECRET}" --app "${SECRET_APP}" --repo "${SECRET_REPOSITORY}"
+          echo "id=${id}" >> "${GITHUB_OUTPUT}"
+          echo "Created ${id}; updated ${USERNAME_SECRET} and ${PASSWORD_SECRET} on ${SECRET_REPOSITORY}"
+
+      # Runs only after the secrets hold the new token, so a failure never
+      # leaves them pointing at a deleted one.
+      - name: Delete older tokens with the same name
+        if: inputs.delete-older
+        env:
+          NEW_ID: ${{ steps.create.outputs.id }}
+        run: |
+          chainctl auth pull-token list --parent="${PARENT}" -o json |
+            jq -r --arg name "${TOKEN_NAME}" --arg new "${NEW_ID}" \
+              '(.items // [])[] | select((.name == $name or (.name | startswith($name + " - "))) and .id != $new) | .id' |
+            while read -r old; do
+              echo "Deleting ${old}"
+              chainctl iam identities delete "${old}" --yes
+            done

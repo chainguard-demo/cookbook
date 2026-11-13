@@ -7,3 +7,4 @@ Recipes for interacting with Chainguard and other resources
 - [Generic registries](/registry/README.md)
 - [Helm](/helm/README.md)
 - [Kubernetes](/kubernetes/README.md)
+- [Pull token rotation](/pull-token-rotation/README.md)
